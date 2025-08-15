@@ -1,0 +1,137 @@
+#include <iostream>
+#include <cuda.h>
+#include <chrono>
+#include <thread>
+#include "./sc_firstPTC.cuh"
+#include "./sc_allocallmem.cuh"
+
+const size_t ALLOC_SIZE = 2 * 1024 * 1024;
+
+uint64_t first_PT_chunk_evcit(int argc, char *argv[])
+{
+    const uint64_t num_alloc = std::stoll(argv[0]);
+    const double threshold = std::stod(argv[1]);
+    const uint64_t skip = std::stoull(argv[2]);
+
+    char **alloc_ptrs = nullptr;
+
+    if (!alloc_all_mem(num_alloc, threshold, skip, &alloc_ptrs))
+    {
+        printf("Error: Memory Allocation is wrong\n");
+        exit(1);
+    }
+
+    char *temp;
+    size_t free_byte;
+    size_t total_byte;
+    auto cuda_status = cudaMemGetInfo(&free_byte, &total_byte);
+
+    if ( cudaSuccess != cuda_status )
+    {
+        printf("Error: cudaMemGetInfo fails, %s \n", cudaGetErrorString(cuda_status));
+        exit(1);
+    }
+
+    double maxTimeMS = 0;
+    uint64_t max_alloc_chunks = total_byte / ALLOC_SIZE;
+    for (uint64_t i = 0; i < max_alloc_chunks; i += 1)
+    {
+        for (int j = 0; j < 2 * 1024 * 1024; j += 4 * 1024)
+            *(alloc_ptrs[i] + j) = 'a';
+
+        // Create Free Space
+        cudaMallocManaged(&temp, 2 * 1024 * 1024);
+
+        auto start = std::chrono::high_resolution_clock::now();
+        initialize_memory<<<1,1>>>(temp, 2 * 1024 * 1024);
+        cudaDeviceSynchronize();
+        auto end = std::chrono::high_resolution_clock::now();
+
+        gpuErrchk(cudaPeekAtLastError());
+        std::chrono::duration<double, std::milli> duration_evict = end - start;
+        double currentMS = duration_evict.count();
+        // std::cout << i + 1 << " New PT time: " << duration_evict.count() << " ms"<< std::endl;
+
+        // Generate Page Table for 64KB Pages.
+        *(temp + 0) = 'a';
+
+        if (i < skip)
+            continue;
+
+        if (maxTimeMS == 0)
+            maxTimeMS = currentMS;
+        else if (currentMS > maxTimeMS && currentMS < threshold)
+            maxTimeMS = currentMS;
+        else if (currentMS > maxTimeMS)
+        {
+            std::cout <<  "After \033[1;31m" << i + 1 << "\033[0m 2MB Allocations:" << std::endl;
+            std::cout << "Normal Latency: " << maxTimeMS << ", Mem Full Latency: " << duration_evict.count() << " ms"<< std::endl;
+            return i + 1;
+        }
+    }
+    return 0;
+}
+
+bool first_PT_chunk(int argc, char *argv[])
+{
+    const uint64_t num_alloc_init = std::stoll(argv[0]);
+    const uint64_t num_alloc = std::stoll(argv[1]);
+    const double threshold = std::stod(argv[2]);
+    const uint64_t skip = std::stoull(argv[3]);
+
+    return first_PT_chunk(num_alloc_init, num_alloc, threshold, skip);
+}
+
+bool first_PT_chunk(uint64_t num_alloc_init, uint64_t num_alloc, double threshold, uint64_t skip)
+{
+    char **alloc_ptrs = nullptr;
+
+    if (!alloc_all_mem(num_alloc_init, threshold, skip, &alloc_ptrs))
+    {
+        printf("Error: Memory Allocation is wrong\n");
+        exit(1);
+    }
+
+    char *temp;
+    double maxTimeMS = 0;
+    for (uint64_t i = 0; i < num_alloc; i += 1)
+    {
+        for (int j = 0; j < 2 * 1024 * 1024; j += 4 * 1024)
+            *(alloc_ptrs[i] + j) = 'a';
+        if (i == num_alloc - 1)
+            for (int j = 0; j < 2 * 1024 * 1024; j += 4 * 1024)
+                *(alloc_ptrs[i + 1] + j) = 'a';
+
+        // Create Free Space
+        cudaMallocManaged(&temp, 2 * 1024 * 1024);
+
+        auto start = std::chrono::high_resolution_clock::now();
+        initialize_memory<<<1,1>>>(temp, 2 * 1024 * 1024);
+        cudaDeviceSynchronize();
+        auto end = std::chrono::high_resolution_clock::now();
+
+        gpuErrchk(cudaPeekAtLastError());
+        std::chrono::duration<double, std::milli> duration_evict = end - start;
+        double currentMS = duration_evict.count();
+        std::cout << i + 1 << " New PT time: " << duration_evict.count() << " ms"<< std::endl;
+
+        // Generate Page Table for 64KB Pages.
+        *(temp + 0) = 'a';
+
+        if (i < skip)
+            continue;
+
+        if (maxTimeMS == 0)
+            maxTimeMS = currentMS;
+        else if (currentMS > maxTimeMS && currentMS < threshold)
+            maxTimeMS = currentMS;
+        else if (currentMS > maxTimeMS)
+        {
+            std::cout <<  "\033[1;31m" << "Error!" << "\033[0m" << std::endl;
+            std::cout <<  "After \033[1;31m" << i + 1 << "\033[0m 2MB Allocations:" << std::endl;
+            std::cout << "Normal Latency: " << maxTimeMS << ", Mem Full Latency: " << duration_evict.count() << " ms"<< std::endl;
+            return false;
+        }
+    }
+    return true;
+}

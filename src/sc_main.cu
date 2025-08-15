@@ -1,11 +1,14 @@
 #include "./sc_allocallmem.cuh"
+#include "./sc_firstPTC.cuh"
 #include <iostream>
 
-enum Task { ALL_MEM_EVICT, ALL_MEM, INVALID };
+enum Task { ALL_MEM_EVICT, ALL_MEM, FIRST_PTC_EVICT, FIRST_PTC, INVALID };
 
-static Task parseTask(const std::string& cmd) {
-    if (cmd == "all_mem_evict") return Task::ALL_MEM_EVICT;
-    if (cmd == "all_mem") return Task::ALL_MEM;
+static Task parseTask(const std::string& tsk) {
+    if (tsk == "all_mem_evict") return Task::ALL_MEM_EVICT;
+    if (tsk == "all_mem") return Task::ALL_MEM;
+    if (tsk == "first_ptc_evict") return Task::FIRST_PTC_EVICT;
+    if (tsk == "first_ptc") return Task::FIRST_PTC;
     return Task::INVALID;
 }
 
@@ -33,6 +36,12 @@ int main (int argc, char *argv[])
             break;
         case Task::ALL_MEM:
             alloc_all_mem(argc, argv, nullptr);
+            break;
+        case Task::FIRST_PTC_EVICT:
+            first_PT_chunk_evcit(argc, argv);
+            break;
+        case Task::FIRST_PTC:
+            first_PT_chunk(argc, argv);
             break;
         case INVALID:
             std::cout << "Unkown Task.\n";
