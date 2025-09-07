@@ -9,7 +9,7 @@ set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --generate-line-info -gencode=arch=com
 
 include_directories(include)
 
-add_library(sc_lib ./sc_allocallmem.cu ./sc_firstPTC.cu ./include/sc_util.cu)
+add_library(sc_lib ./sc_allocallmem.cu ./sc_firstPTC.cu ./sc_firstPTC_hammer.cu ./sc_secondPTC.cu ./include/sc_util.cu)
 
 add_executable(sc_main ./sc_main.cu)
 target_link_libraries(sc_main PUBLIC sc_lib)

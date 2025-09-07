@@ -108,5 +108,7 @@ bool alloc_all_mem(uint64_t num_alloc, double threshold, uint64_t skip, char ***
             return false;
         }
     }
+
+    std::cout << "Memory Allocated to Full" << '\n';
     return true;
 }

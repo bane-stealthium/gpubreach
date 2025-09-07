@@ -16,19 +16,12 @@
  */
 uint64_t first_PT_chunk_evcit(int argc, char *argv[]);
 
-/**
- * @brief 
- * 
- * @param num_alloc_init 
- * @param num_alloc 
- * @param threshold 
- * @param skip 
- * @param alloc_ptrs 
- * @return true 
- * @return false 
- */
 bool first_PT_chunk(uint64_t num_alloc_init, uint64_t num_alloc, double threshold, uint64_t skip);
 
 bool first_PT_chunk(int argc, char *argv[]);
+
+bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t alloc_id, double threshold, uint64_t skip, char ***first_ptc_ptrs, char **agg_ptr);
+
+bool first_PT_chunk_fill(int argc, char *argv[], char ***first_ptc_ptrs, char **agg_ptr);
 
 #endif /* SC_FIRSTPTC_CUH */
