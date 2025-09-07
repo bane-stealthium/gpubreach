@@ -74,7 +74,7 @@ bool alloc_all_mem(uint64_t num_alloc, double threshold, uint64_t skip, char ***
     char *temp;
 
     uint64_t i = 0;
-    double maxTimeMS = 0;
+    double minTimeMS = 0;
     if (alloc_ptrs)
         *alloc_ptrs = (char**)malloc(sizeof(char*) * (num_alloc));
     for (; i < num_alloc; i += 1)
@@ -88,7 +88,7 @@ bool alloc_all_mem(uint64_t num_alloc, double threshold, uint64_t skip, char ***
         gpuErrchk(cudaPeekAtLastError());
         std::chrono::duration<double, std::milli> duration_evict = end - start;
         double currentMS = duration_evict.count();
-        std::cout << i << " New PT time: " << duration_evict.count() << " ms"<< std::endl;
+        // std::cout << i << " New PT time: " << duration_evict.count() << " ms"<< std::endl;
 
         if (alloc_ptrs)
             (*alloc_ptrs)[i] = temp;
@@ -96,15 +96,15 @@ bool alloc_all_mem(uint64_t num_alloc, double threshold, uint64_t skip, char ***
         if (i < skip)
             continue;
 
-        if (maxTimeMS == 0)
-            maxTimeMS = currentMS;
-        else if (currentMS > maxTimeMS && currentMS < threshold)
-            maxTimeMS = currentMS;
-        else if (currentMS > maxTimeMS)
+        if (minTimeMS == 0)
+            minTimeMS = currentMS;
+        else if (currentMS < minTimeMS)
+            minTimeMS = currentMS;
+        else if (currentMS > minTimeMS + threshold)
         {
             std::cout <<  "\033[1;31m" << "Error!" << "\033[0m" << std::endl;
-            std::cout <<  "After \033[1;31m" << i + 1 << "\033[0m 2MB Allocations:" << std::endl;
-            std::cout << "Normal Latency: " << maxTimeMS << ", Mem Full Latency: " << duration_evict.count() << " ms"<< std::endl;
+            std::cout <<  "After \033[1;31m" << i << "\033[0m 2MB Allocations:" << std::endl;
+            std::cout << "Normal Latency: " << minTimeMS << ", Mem Full Latency: " << duration_evict.count() << " ms"<< std::endl;
             return false;
         }
     }

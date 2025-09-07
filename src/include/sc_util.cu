@@ -18,6 +18,6 @@ __global__ void print_memory(char *array, uint64_t size)
 
 __global__ void memset_ptr(char *array, uint64_t size)
 {
-    for (uint64_t i = 0; i < size / 8; i++)
-        *((char **)array + i) = array;
+    for (uint64_t i = 0; i < size; i+=64*1024)
+        *(char **)(array + i) = array + i;
 }

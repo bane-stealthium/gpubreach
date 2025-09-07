@@ -14,7 +14,7 @@
  * @return uint64_t returns the number of allocations required.
   0 if did not observe, then something is wrong
  */
-uint64_t first_PT_chunk_evcit(int argc, char *argv[]);
+uint64_t first_PT_chunk_evict(int argc, char *argv[]);
 
 bool first_PT_chunk(uint64_t num_alloc_init, uint64_t num_alloc, double threshold, uint64_t skip);
 

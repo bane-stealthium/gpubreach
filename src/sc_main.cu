@@ -12,6 +12,7 @@ enum Task
   FIRST_PTC,
   FIRST_PTC_FILL,
   FIRST_PTC_ATK,
+  SECOND_PTC_EVICT,
   SECOND_PTC,
   SECOND_PTC_ATK,
   INVALID
@@ -23,6 +24,9 @@ static Task parseTask(const std::string& tsk) {
     if (tsk == "first_ptc_evict") return Task::FIRST_PTC_EVICT;
     if (tsk == "first_ptc") return Task::FIRST_PTC;
     if (tsk == "first_ptc_fill") return Task::FIRST_PTC_FILL;
+    if (tsk == "first_ptc_atk") return Task::FIRST_PTC_ATK;
+    if (tsk == "second_ptc_evict") return Task::SECOND_PTC_EVICT;
+    if (tsk == "second_ptc") return Task::SECOND_PTC;
     return Task::INVALID;
 }
 
@@ -52,7 +56,7 @@ int main (int argc, char *argv[])
             alloc_all_mem(argc, argv, nullptr);
             break;
         case Task::FIRST_PTC_EVICT:
-            first_PT_chunk_evcit(argc, argv);
+            first_PT_chunk_evict(argc, argv);
             break;
         case Task::FIRST_PTC:
             first_PT_chunk(argc, argv);
@@ -61,7 +65,13 @@ int main (int argc, char *argv[])
             first_PT_chunk_fill(argc, argv, nullptr, nullptr);
             break;
         case Task::FIRST_PTC_ATK:
-            first_PT_chunk_attack(argc, argv, nullptr, nullptr);
+            first_PT_chunk_attack(argc, argv, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+            break;
+        case Task::SECOND_PTC_EVICT:
+            second_PT_chunk_evict(argc, argv);
+            break;
+        case Task::SECOND_PTC:
+            second_PT_chunk(argc, argv);
             break;
         case INVALID:
             std::cout << "Unkown Task.\n";

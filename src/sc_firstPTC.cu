@@ -7,7 +7,7 @@
 
 const size_t ALLOC_SIZE = 2 * 1024 * 1024;
 
-uint64_t first_PT_chunk_evcit(int argc, char *argv[])
+uint64_t first_PT_chunk_evict(int argc, char *argv[])
 {
     const uint64_t num_alloc = std::stoll(argv[0]);
     const double threshold = std::stod(argv[1]);
@@ -50,7 +50,7 @@ uint64_t first_PT_chunk_evcit(int argc, char *argv[])
         gpuErrchk(cudaPeekAtLastError());
         std::chrono::duration<double, std::milli> duration_evict = end - start;
         double currentMS = duration_evict.count();
-        // std::cout << i + 1 << " New PT time: " << duration_evict.count() << " ms"<< std::endl;
+        // std::cout << i << " New PT time: " << duration_evict.count() << " ms"<< std::endl;
 
         // Generate Page Table for 64KB Pages.
         *(temp + 0) = 'a';
@@ -64,7 +64,7 @@ uint64_t first_PT_chunk_evcit(int argc, char *argv[])
             maxTimeMS = currentMS;
         else if (currentMS > maxTimeMS)
         {
-            std::cout <<  "After \033[1;31m" << i + 1 << "\033[0m 2MB Allocations:" << std::endl;
+            std::cout <<  "After \033[1;31m" << i << "\033[0m 2MB Allocations:" << std::endl;
             std::cout << "Normal Latency: " << maxTimeMS << ", Mem Full Latency: " << duration_evict.count() << " ms"<< std::endl;
             return i + 1;
         }
@@ -113,7 +113,7 @@ bool first_PT_chunk(uint64_t num_alloc_init, uint64_t num_alloc, double threshol
         gpuErrchk(cudaPeekAtLastError());
         std::chrono::duration<double, std::milli> duration_evict = end - start;
         double currentMS = duration_evict.count();
-        std::cout << i + 1 << " New PT time: " << duration_evict.count() << " ms"<< std::endl;
+        std::cout << i << " New PT time: " << duration_evict.count() << " ms"<< std::endl;
 
         // Generate Page Table for 64KB Pages.
         *(temp + 0) = 'a';
@@ -128,7 +128,7 @@ bool first_PT_chunk(uint64_t num_alloc_init, uint64_t num_alloc, double threshol
         else if (currentMS > maxTimeMS)
         {
             std::cout <<  "\033[1;31m" << "Error!" << "\033[0m" << std::endl;
-            std::cout <<  "After \033[1;31m" << i + 1 << "\033[0m 2MB Allocations:" << std::endl;
+            std::cout <<  "After \033[1;31m" << i << "\033[0m 2MB Allocations:" << std::endl;
             std::cout << "Normal Latency: " << maxTimeMS << ", Mem Full Latency: " << duration_evict.count() << " ms"<< std::endl;
             return false;
         }
@@ -158,10 +158,9 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
         printf("Error: Memory Allocation is wrong\n");
         exit(1);
     }
-    std::cout << "Memory Allocated to Full" << '\n';
 
     char *temp;
-    double maxTimeMS = 0;
+    double minTimeMS = 0;
     int timein;
     std::cin >> timein;
 
@@ -203,7 +202,7 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
         double currentMS = duration_evict.count();
 
         before_chunk_ptrs[i] = temp;
-        // std::cout << i + 1 << " New PT time: " << duration_evict.count() << " ms"<< std::endl;
+        // std::cout << i << " New PT time: " << duration_evict.count() << " ms"<< std::endl;
 
         // Generate Page Table for 64KB Pages.
         *(temp + 0) = 'a';
@@ -211,15 +210,15 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
         if (i < skip)
             continue;
 
-        if (maxTimeMS == 0)
-            maxTimeMS = currentMS;
-        else if (currentMS > maxTimeMS && currentMS < threshold)
-            maxTimeMS = currentMS;
-        else if (currentMS > maxTimeMS)
+        if (minTimeMS == 0)
+            minTimeMS = currentMS;
+        else if (currentMS < minTimeMS)
+            minTimeMS = currentMS;
+        else if (currentMS > minTimeMS + threshold)
         {
             std::cout <<  "\033[1;31m" << "Error!" << "\033[0m" << std::endl;
-            std::cout <<  "After \033[1;31m" << i + 1 << "\033[0m 2MB Allocations:" << std::endl;
-            std::cout << "Normal Latency: " << maxTimeMS << ", Mem Full Latency: " << duration_evict.count() << " ms"<< std::endl;
+            std::cout <<  "After \033[1;31m" << i << "\033[0m 2MB Allocations:" << std::endl;
+            std::cout << "Normal Latency: " << minTimeMS << ", Mem Full Latency: " << duration_evict.count() << " ms"<< std::endl;
             return false;
         }
     }
@@ -243,12 +242,13 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
     std::cin >> timein;
 
     std::cout << std::hex << (void*)before_chunk_ptrs[num_alloc-1]<< '\n';
+    std::cout << std::dec;
 
     if (agg_ptr)
         *agg_ptr = before_chunk_ptrs[num_alloc-1];
     free(before_chunk_ptrs);
 
-    maxTimeMS = 0;
+    minTimeMS = 0;
     std::cout << std::dec;
     if (first_ptc_ptrs)
         *first_ptc_ptrs = (char **)malloc((num_alloc_init - 2) * sizeof(char*));
@@ -264,7 +264,7 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
         gpuErrchk(cudaPeekAtLastError());
         std::chrono::duration<double, std::milli> duration_evict = end - start;
         double currentMS = duration_evict.count();
-        std::cout << i + 1 << " New PT time: " << duration_evict.count() << " ms"<< std::endl;
+        // std::cout << i << " New PT time: " << duration_evict.count() << " ms"<< std::endl;
 
         if (first_ptc_ptrs)
             (*first_ptc_ptrs)[i] = temp;
@@ -275,112 +275,19 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
         if (i < skip)
             continue;
 
-        if (maxTimeMS == 0)
-            maxTimeMS = currentMS;
-        else if (currentMS > maxTimeMS && currentMS < 0.32)
-            maxTimeMS = currentMS;
-        else if (currentMS > maxTimeMS)
+        if (minTimeMS == 0)
+            minTimeMS = currentMS;
+        else if (currentMS < minTimeMS)
+            minTimeMS = currentMS;
+        else if (currentMS > minTimeMS + threshold)
         {
             std::cout <<  "\033[1;31m" << "Error!" << "\033[0m" << std::endl;
-            std::cout <<  "After \033[1;31m" << i + 1 << "\033[0m 2MB Allocations:" << std::endl;
-            std::cout << "Normal Latency: " << maxTimeMS << ", Mem Full Latency: " << duration_evict.count() << " ms"<< std::endl;
-
+            std::cout <<  "After \033[1;31m" << i << "\033[0m 2MB Allocations:" << std::endl;
+            std::cout << "Normal Latency: " << minTimeMS << ", Mem Full Latency: " << duration_evict.count() << " ms"<< std::endl;
             return false;
         }
     }
 
-    // for (uint64_t i = 0; i < num_alloc_init - 2; i += 1)
-    // {
-    //     memset_ptr<<<1, 1>>>(ptrs[i] + 64 * 1024, 2 * 1024 * 1024 - 64 * 1024);
-    // }
-
-    // memset_ptr<<<1, 1>>>(firstPT_ptrs[num_alloc-1] + 64 * 1024, 2 * 1024 * 1024 - 64 * 1024);
-    // cudaDeviceSynchronize();
-
-    // std::cout << (void*)firstPT_ptrs[num_alloc-1] << '\n';
-    // std::cout << "First PTC Filled " << '\n';
-    // std::cin.clear();
-    // std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    // std::cin >> timein;
-
-    // print_memory<<<1, 1>>>(firstPT_ptrs[num_alloc-1] + 64 * 1024, 100);
-    // cudaDeviceSynchronize();
-
-    // std::cout << (void*)ptrs[894] << '\n';
-    // std::cout << (void*)ptrs[895] << '\n';
-    // std::cout << "Content Printed " << '\n';
-    // std::cin.clear();
-    // std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    // std::cin >> timein;
-
-    // maxTimeMS = 0;
-    // // 892
-    // for (int j = 0; j < 2 * 1024 * 1024; j += 4 * 1024)
-    //     *(ptrs[0] + j) = 'a';
-    // for (uint64_t i = 2; i < 895; i += 1)
-    // {
-
-    //     for (int j = 0; j < 2 * 1024 * 1024; j += 4 * 1024)
-    //         *(ptrs[i] + j) = 'a';
-    //     if (i == 514)
-    //         {
-    //             for (int j = 0; j < 2 * 1024 * 1024; j += 4 * 1024)
-    //                  *(ptrs[1] + j) = 'a';
-    //         }
-    //     if (i == 894)
-    //         {
-    //             for (int j = 0; j < 2 * 1024 * 1024; j += 4 * 1024)
-    //                  *(ptrs[895] + j) = 'a';
-    //         }
-
-    //     // Create Free Space
-    //     cudaMallocManaged(&temp, 2 * 1024 * 1024 + 4096);
-    //     auto start = std::chrono::high_resolution_clock::now();
-    //     initialize_memory<<<1,1>>>(temp, 2 * 1024 * 1024 + 4096);
-    //     cudaDeviceSynchronize();
-    //     auto end = std::chrono::high_resolution_clock::now();
-
-    //     gpuErrchk(cudaPeekAtLastError());
-    //     std::chrono::duration<double, std::milli> duration_evict = end - start;
-    //     double currentMS = duration_evict.count();
-    //     std::cout << i + 1 << " New PT time: " << duration_evict.count() << " ms"<< std::endl;
-
-    //     // Generate Page Table for 64KB Pages.
-    //     *(temp + 0) = 'a';
-
-    //     if (i < skip)
-    //         continue;
-
-    //     if (maxTimeMS == 0)
-    //         maxTimeMS = currentMS;
-    //     else if (currentMS > maxTimeMS && currentMS < 0.35)
-    //         maxTimeMS = currentMS;
-    //     else if (currentMS > maxTimeMS)
-    //     {
-    //         std::cout <<  "\033[1;31m" << "Error!" << "\033[0m" << std::endl;
-    //         std::cout <<  "After \033[1;31m" << i + 1 << "\033[0m 2MB Allocations:" << std::endl;
-    //         std::cout << "Normal Latency: " << maxTimeMS << ", Mem Full Latency: " << duration_evict.count() << " ms"<< std::endl;
-
-    //         std::cout << "Second PTC Attack " << '\n';
-    //         std::cin.clear();
-    //         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    //         std::cin >> timein;
-    //         return false;
-    //     }
-    // }
-
-    // std::cout << "Second attack PTC created " << '\n';
-    // std::cin.clear();
-    // std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    // std::cin >> timein;
-
-    // print_memory<<<1, 1>>>(firstPT_ptrs[num_alloc-1] + 64 * 1024, 100);
-    // cudaDeviceSynchronize();
-
-    // std::cout << "Content Printed " << '\n';
-    // std::cin.clear();
-    // std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    // std::cin >> timein;
-
+    std::cout << "First PTC Filled " << '\n';
     return true;
 }
