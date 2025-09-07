@@ -93,7 +93,6 @@ bool first_PT_chunk(uint64_t num_alloc_init, uint64_t num_alloc, double threshol
     }
 
     char *temp;
-    double maxTimeMS = 0;
     for (uint64_t i = 0; i < num_alloc; i += 1)
     {
         for (int j = 0; j < 2 * 1024 * 1024; j += 4 * 1024)
@@ -120,18 +119,6 @@ bool first_PT_chunk(uint64_t num_alloc_init, uint64_t num_alloc, double threshol
 
         if (i < skip)
             continue;
-
-        if (maxTimeMS == 0)
-            maxTimeMS = currentMS;
-        else if (currentMS > maxTimeMS && currentMS < threshold)
-            maxTimeMS = currentMS;
-        else if (currentMS > maxTimeMS)
-        {
-            std::cout <<  "\033[1;31m" << "Error!" << "\033[0m" << std::endl;
-            std::cout <<  "After \033[1;31m" << i << "\033[0m 2MB Allocations:" << std::endl;
-            std::cout << "Normal Latency: " << maxTimeMS << ", Mem Full Latency: " << duration_evict.count() << " ms"<< std::endl;
-            return false;
-        }
     }
     return true;
 }
@@ -160,7 +147,6 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
     }
 
     char *temp;
-    double minTimeMS = 0;
     int timein;
     std::cin >> timein;
 
@@ -209,18 +195,6 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
 
         if (i < skip)
             continue;
-
-        if (minTimeMS == 0)
-            minTimeMS = currentMS;
-        else if (currentMS < minTimeMS)
-            minTimeMS = currentMS;
-        else if (currentMS > minTimeMS + threshold)
-        {
-            std::cout <<  "\033[1;31m" << "Error!" << "\033[0m" << std::endl;
-            std::cout <<  "After \033[1;31m" << i << "\033[0m 2MB Allocations:" << std::endl;
-            std::cout << "Normal Latency: " << minTimeMS << ", Mem Full Latency: " << duration_evict.count() << " ms"<< std::endl;
-            return false;
-        }
     }
 
     std::cout << "First PTC Generated " << '\n';
@@ -229,8 +203,7 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
     std::cin >> timein;
 
     /* Free up CPU memory by releasing the evicted memories */
-    for (uint64_t i = 0; i < num_alloc_init; i += 1)
-        cudaFree(alloc_ptrs[i]);
+    cudaFree(alloc_ptrs[0]);
     free(alloc_ptrs);
 
     for (uint64_t i = 0; i < num_alloc - 1; i += 1)
@@ -248,7 +221,6 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
         *agg_ptr = before_chunk_ptrs[num_alloc-1];
     free(before_chunk_ptrs);
 
-    minTimeMS = 0;
     std::cout << std::dec;
     if (first_ptc_ptrs)
         *first_ptc_ptrs = (char **)malloc((num_alloc_init - 2) * sizeof(char*));
@@ -274,18 +246,6 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
 
         if (i < skip)
             continue;
-
-        if (minTimeMS == 0)
-            minTimeMS = currentMS;
-        else if (currentMS < minTimeMS)
-            minTimeMS = currentMS;
-        else if (currentMS > minTimeMS + threshold)
-        {
-            std::cout <<  "\033[1;31m" << "Error!" << "\033[0m" << std::endl;
-            std::cout <<  "After \033[1;31m" << i << "\033[0m 2MB Allocations:" << std::endl;
-            std::cout << "Normal Latency: " << minTimeMS << ", Mem Full Latency: " << duration_evict.count() << " ms"<< std::endl;
-            return false;
-        }
     }
 
     std::cout << "First PTC Filled " << '\n';

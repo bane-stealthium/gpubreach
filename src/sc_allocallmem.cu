@@ -27,9 +27,9 @@ uint64_t alloc_all_mem_evcit(int argc, char *argv[], char ***alloc_ptrs)
     double maxTimeMS = 0;
     if (alloc_ptrs)
         *alloc_ptrs = (char**)malloc(sizeof(char*) * (total_byte / ALLOC_SIZE));
+    cudaMallocManaged(&temp, total_byte);
     for (; chunks < total_byte; chunks += ALLOC_SIZE)
     {
-        cudaMallocManaged(&temp, ALLOC_SIZE);
         if (alloc_ptrs)
             (*alloc_ptrs)[chunks / ALLOC_SIZE] = temp;
 
@@ -56,6 +56,7 @@ uint64_t alloc_all_mem_evcit(int argc, char *argv[], char ***alloc_ptrs)
             std::cout << "Normal Latency: " << maxTimeMS << ", Mem Full Eviction Latency: " << duration_evict.count() << " ms"<< std::endl;
             return (chunks / ALLOC_SIZE) + 1;
         }
+        temp += ALLOC_SIZE;
     }
     return 0;
 }
@@ -74,12 +75,11 @@ bool alloc_all_mem(uint64_t num_alloc, double threshold, uint64_t skip, char ***
     char *temp;
 
     uint64_t i = 0;
-    double minTimeMS = 0;
     if (alloc_ptrs)
         *alloc_ptrs = (char**)malloc(sizeof(char*) * (num_alloc));
+    cudaMallocManaged(&temp, num_alloc * ALLOC_SIZE);
     for (; i < num_alloc; i += 1)
     {
-        cudaMallocManaged(&temp, ALLOC_SIZE);
         auto start = std::chrono::high_resolution_clock::now();
         initialize_memory<<<1,1>>>(temp, ALLOC_SIZE);
         cudaDeviceSynchronize();
@@ -88,25 +88,16 @@ bool alloc_all_mem(uint64_t num_alloc, double threshold, uint64_t skip, char ***
         gpuErrchk(cudaPeekAtLastError());
         std::chrono::duration<double, std::milli> duration_evict = end - start;
         double currentMS = duration_evict.count();
-        // std::cout << i << " New PT time: " << duration_evict.count() << " ms"<< std::endl;
 
         if (alloc_ptrs)
             (*alloc_ptrs)[i] = temp;
 
+        std::cout << i << " New PT time: " << duration_evict.count() << " ms" << (void*)temp << std::endl;
+
+        temp += ALLOC_SIZE;
         if (i < skip)
             continue;
 
-        if (minTimeMS == 0)
-            minTimeMS = currentMS;
-        else if (currentMS < minTimeMS)
-            minTimeMS = currentMS;
-        else if (currentMS > minTimeMS + threshold)
-        {
-            std::cout <<  "\033[1;31m" << "Error!" << "\033[0m" << std::endl;
-            std::cout <<  "After \033[1;31m" << i << "\033[0m 2MB Allocations:" << std::endl;
-            std::cout << "Normal Latency: " << minTimeMS << ", Mem Full Latency: " << duration_evict.count() << " ms"<< std::endl;
-            return false;
-        }
     }
 
     std::cout << "Memory Allocated to Full" << '\n';
