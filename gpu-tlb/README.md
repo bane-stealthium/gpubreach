@@ -1,4 +1,14 @@
 # gpu-tlb 
+
+## Note from Chris
+
+This version of the dumper only works with **NVIDIA-Linux-x86_64-570.133.07.run**.
+
+Change log:
+1. Added `print_layout.py`, which prints the dumped page table output in ascending order based on the physical address.
+2. Modified `examples/pagemap.py`, which returns the PTE information by taking the dumper output and a virtual address.
+
+## 
 This repo contains the tools described in our paper "**TunneLs for Bootlegging: Fully Reverse-Engineering GPU TLBs for Challenging Isolation Guarantees of NVIDIA MIG**". 
 - dumper: This utility tool can dump the memory of GPUs from the Ampere series and earlier. 
 - extractor: This utility tool can extract the GPU page tables from a given GPU memory dump. 
