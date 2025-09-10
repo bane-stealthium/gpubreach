@@ -6,9 +6,11 @@ set(CMAKE_CUDA_ARCHITECTURES 86)
 
 project(PT_SIDECHANNEL LANGUAGES CXX CUDA)
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --generate-line-info -O3 -Xcicc -O0 -Xptxas -O3 -gencode=arch=compute_86,code=sm_86")
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xptxas -dlcm=cg")
+# set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xptxas -dlcm=cg")
 
 include_directories(include)
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
 
 add_library(sc_lib ./sc_allocallmem.cu ./sc_firstPTC.cu ./sc_firstPTC_hammer.cu ./sc_secondPTC.cu ./include/sc_util.cu)
 

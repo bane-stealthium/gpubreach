@@ -30,8 +30,6 @@ enum MEM_PAT
   // AGGRES_PAT = 0xAA
 };
 
-extern std::string CLI_PREFIX;
-
 RowList read_row_from_file(std::ifstream &file, const uint8_t *base_addr);
 
 std::vector<uint64_t> get_sequential_victims(RowList &rows, uint64_t row_id,

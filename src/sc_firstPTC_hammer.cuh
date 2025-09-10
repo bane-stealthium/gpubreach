@@ -1,6 +1,9 @@
 #include <stdint.h>
 #include <iostream>
 #include <sc_util.cuh>
+// #include <rh_kernels.cuh>
+// #include <rh_utils.cuh> 
+// #include <rh_impls.cuh>
 
 #ifndef SC_FIRSTPTC_ATTACK_CUH
 #define SC_FIRSTPTC_ATTACK_CUH

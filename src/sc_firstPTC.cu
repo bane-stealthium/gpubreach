@@ -50,7 +50,7 @@ uint64_t first_PT_chunk_evict(int argc, char *argv[])
         gpuErrchk(cudaPeekAtLastError());
         std::chrono::duration<double, std::milli> duration_evict = end - start;
         double currentMS = duration_evict.count();
-        // std::cout << i << " New PT time: " << duration_evict.count() << " ms"<< std::endl;
+        std::cout << i << " New PT time: " << duration_evict.count() << " ms"<< std::endl;
 
         // Generate Page Table for 64KB Pages.
         *(temp + 0) = 'a';
@@ -66,6 +66,7 @@ uint64_t first_PT_chunk_evict(int argc, char *argv[])
         {
             std::cout <<  "After \033[1;31m" << i << "\033[0m 2MB Allocations:" << std::endl;
             std::cout << "Normal Latency: " << maxTimeMS << ", Mem Full Latency: " << duration_evict.count() << " ms"<< std::endl;
+            std::cin >> maxTimeMS;
             return i + 1;
         }
     }
@@ -140,14 +141,22 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
     char **alloc_ptrs = nullptr;
     char **before_chunk_ptrs = (char **)malloc(num_alloc * sizeof(char*));
 
+    if (alloc_id < 100)
+    {
+        std::cout << "Error: Memory Allocation is wrong" << "\n";
+        exit(1);
+    }
     if (!alloc_all_mem(num_alloc_init, threshold, skip, &alloc_ptrs))
     {
-        printf("Error: Memory Allocation is wrong\n");
+        std::cout << "Error: Memory Allocation is wrong" << "\n";
         exit(1);
     }
 
     char *temp;
     int timein;
+    std::cout << (void*)alloc_ptrs[alloc_id]<< '\n';
+    std::cin.clear();
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     std::cin >> timein;
 
     /**
@@ -214,7 +223,7 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     std::cin >> timein;
 
-    std::cout << std::hex << (void*)before_chunk_ptrs[num_alloc-1]<< '\n';
+    std::cout << (void*)before_chunk_ptrs[num_alloc-1]<< '\n';
     std::cout << std::dec;
 
     if (agg_ptr)

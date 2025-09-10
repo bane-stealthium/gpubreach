@@ -27,7 +27,11 @@ uint64_t alloc_all_mem_evcit(int argc, char *argv[], char ***alloc_ptrs)
     double maxTimeMS = 0;
     if (alloc_ptrs)
         *alloc_ptrs = (char**)malloc(sizeof(char*) * (total_byte / ALLOC_SIZE));
-    cudaMallocManaged(&temp, total_byte);
+    int device;
+    cudaGetDevice(&device);
+    cudaMallocManaged (&temp, total_byte);
+    cudaMemPrefetchAsync(temp, 15L * 1024 * 1024 * 1024, device);
+    cudaDeviceSynchronize();
     for (; chunks < total_byte; chunks += ALLOC_SIZE)
     {
         if (alloc_ptrs)
@@ -43,6 +47,7 @@ uint64_t alloc_all_mem_evcit(int argc, char *argv[], char ***alloc_ptrs)
         double currentMS = duration_evict.count();
         std::cout << chunks / ALLOC_SIZE << " New PT time: " << duration_evict.count() << " ms"<< std::endl;
 
+        temp += ALLOC_SIZE;
         if (chunks < skip * ALLOC_SIZE)
             continue;
 
@@ -52,11 +57,11 @@ uint64_t alloc_all_mem_evcit(int argc, char *argv[], char ***alloc_ptrs)
             maxTimeMS = currentMS;
         else if (currentMS > maxTimeMS)
         {
-            std::cout <<  "After \033[1;31m" << (chunks / ALLOC_SIZE) + 1 << "\033[0m 2MB Allocations:" << std::endl;
+            std::cout <<  "After \033[1;31m" << (chunks / ALLOC_SIZE) << "\033[0m 2MB Allocations:" << std::endl;
             std::cout << "Normal Latency: " << maxTimeMS << ", Mem Full Eviction Latency: " << duration_evict.count() << " ms"<< std::endl;
-            return (chunks / ALLOC_SIZE) + 1;
+            std::cout << "You should allocate until: " << (chunks / ALLOC_SIZE) << std::endl;
+            return (chunks / ALLOC_SIZE);
         }
-        temp += ALLOC_SIZE;
     }
     return 0;
 }
@@ -77,7 +82,12 @@ bool alloc_all_mem(uint64_t num_alloc, double threshold, uint64_t skip, char ***
     uint64_t i = 0;
     if (alloc_ptrs)
         *alloc_ptrs = (char**)malloc(sizeof(char*) * (num_alloc));
-    cudaMallocManaged(&temp, num_alloc * ALLOC_SIZE);
+    int device;
+    double maxTimeMS = 0;
+    cudaGetDevice(&device);
+    cudaMallocManaged (&temp, num_alloc * ALLOC_SIZE);
+    cudaMemPrefetchAsync(temp, 15L * 1024 * 1024 * 1024, device);
+    cudaDeviceSynchronize();
     for (; i < num_alloc; i += 1)
     {
         auto start = std::chrono::high_resolution_clock::now();
@@ -98,8 +108,19 @@ bool alloc_all_mem(uint64_t num_alloc, double threshold, uint64_t skip, char ***
         if (i < skip)
             continue;
 
+        if (maxTimeMS == 0)
+            maxTimeMS = currentMS;
+        else if (currentMS > maxTimeMS && currentMS < threshold)
+            maxTimeMS = currentMS;
+        else if (currentMS > maxTimeMS)
+        {
+            std::cout <<  "After \033[1;31m" << i<< "\033[0m 2MB Allocations:" << std::endl;
+            std::cout << "Normal Latency: " << maxTimeMS << ", Mem Full Eviction Latency: " << duration_evict.count() << " ms"<< std::endl;
+            return false;
+        }
     }
-
+    std::cout << (void*)(temp - ALLOC_SIZE * i) << '\n';
+    std::cin >> device;
     std::cout << "Memory Allocated to Full" << '\n';
     return true;
 }

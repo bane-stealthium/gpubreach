@@ -194,9 +194,9 @@ void evict_L2cache(uint8_t *layout)
 
 void print_time(uint64_t time_ns)
 {
-  std::cout << CLI_PREFIX << "Took Approx: " << time_ns << "ns\n";
-  std::cout << CLI_PREFIX << "Took Approx: " << (time_ns) / 1000.0 << "us\n";
-  std::cout << CLI_PREFIX << "Took Approx: " << (time_ns) / 1000000.0 << "ms\n";
+  std::cout << "Took Approx: " << time_ns << "ns\n";
+  std::cout << "Took Approx: " << (time_ns) / 1000.0 << "us\n";
+  std::cout << "Took Approx: " << (time_ns) / 1000000.0 << "ms\n";
 }
 
 /**
