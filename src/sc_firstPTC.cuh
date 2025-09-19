@@ -20,8 +20,8 @@ bool first_PT_chunk(uint64_t num_alloc_init, uint64_t num_alloc, double threshol
 
 bool first_PT_chunk(int argc, char *argv[]);
 
-bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t alloc_id, double threshold, uint64_t skip, char ***first_ptc_ptrs, char **agg_ptr);
+bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t alloc_id, double threshold, uint64_t skip, char ***first_ptc_ptrs, RowList *agg_row_list, std::vector<uint64_t> *agg_vec);
 
-bool first_PT_chunk_fill(int argc, char *argv[], char ***first_ptc_ptrs, char **agg_ptr);
+bool first_PT_chunk_fill(int argc, char *argv[], char ***first_ptc_ptrs, RowList *agg_row_list, std::vector<uint64_t> *agg_vec);
 
 #endif /* SC_FIRSTPTC_CUH */
