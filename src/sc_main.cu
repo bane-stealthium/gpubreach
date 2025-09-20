@@ -62,7 +62,7 @@ int main (int argc, char *argv[])
             first_PT_chunk(argc, argv);
             break;
         case Task::FIRST_PTC_FILL:
-            first_PT_chunk_fill(argc, argv, nullptr, nullptr, nullptr);
+            first_PT_chunk_fill(argc, argv, nullptr, nullptr, nullptr, nullptr, nullptr);
             break;
         case Task::FIRST_PTC_ATK:
             first_PT_chunk_attack(argc, argv, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);

