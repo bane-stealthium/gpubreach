@@ -144,7 +144,7 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
 {
     char **alloc_ptrs = nullptr;
     int timein;
-    char **before_chunk_ptrs = (char **)malloc((num_alloc + 1) * sizeof(char*));
+    char **before_chunk_ptrs = (char **)malloc((num_alloc) * sizeof(char*));
 
     if (alloc_id < 110)
     {
@@ -292,10 +292,6 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
     std::cin.clear();
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     std::cin >> timein;
-    
-
-    // if (agg_ptr)
-    //     *agg_ptr = before_chunk_ptrs[num_alloc-1];
 
     std::cout << std::dec;
     if (first_ptc_ptrs)
@@ -323,7 +319,7 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
     for (uint64_t i = 0; i < 10000; i += 1)
     {
         // Create Free Space
-        cudaMallocManaged(&temp, 2 * 1024 * 1024);
+        cudaMallocManaged (&temp, 2 * 1024 * 1024);
         auto start = std::chrono::high_resolution_clock::now();
         initialize_memory<<<1,1>>>(temp, 2 * 1024 * 1024);
         cudaDeviceSynchronize();
@@ -345,13 +341,8 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
     }
 
     for (uint64_t i = 0; i < 250; i += 1)
-    {
-        // cudaMalloc(&temp, 2 * 1024 * 1024);
-        // initialize_memory<<<1,1>>>(temp, 2 * 1024 * 1024);
-        // cudaDeviceSynchronize();
-        // std::cout << "Iterating Mem: " << (void*) temp << '\n';
         cudaFree(temp_ptrs[i]);
-    }
+    free(temp_ptrs);
 
     std::cout << to_reserve << '\n';
     std::cout << hammer_pointers.size() << '\n';
@@ -361,25 +352,50 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
     std::cin >> timein;
 
     for (uint64_t i = 10000; i < num_alloc_init - 50 - to_reserve - 4; i += 1)
+    // for (uint64_t i = 10000; i < 10100; i += 1)
     {
         // Create Free Space
-        cudaMallocManaged(&temp, 2 * 1024 * 1024);
-        auto start = std::chrono::high_resolution_clock::now();
-        initialize_memory<<<1,1>>>(temp, 2 * 1024 * 1024);
-        cudaDeviceSynchronize();
-        auto end = std::chrono::high_resolution_clock::now();
+        // std::this_thread::sleep_for(std::chrono::milliseconds(5));
 
-        gpuErrchk(cudaPeekAtLastError());
-        std::chrono::duration<double, std::milli> duration_evict = end - start;
-        double currentMS = duration_evict.count();
-        std::cout << i << " New PT time: " << duration_evict.count() << " ms"<< std::endl;
+        // Create Free Spaces
+        for (int j = 0; j < 1; j++)
+        {
+            cudaMallocManaged (&temp, 2 * 1024 * 1024);
+            auto start = std::chrono::high_resolution_clock::now();
+            initialize_memory<<<1,1>>>(temp, 2 * 1024 * 1024);
+            cudaDeviceSynchronize();
+            auto end = std::chrono::high_resolution_clock::now();
 
-        if (first_ptc_ptrs)
-            (*first_ptc_ptrs)[i] = temp;
+            gpuErrchk(cudaPeekAtLastError());
+            std::chrono::duration<double, std::milli> duration_evict = end - start;
+            double currentMS = duration_evict.count();
+            std::cout << i << " New PT time: " << duration_evict.count() << ' ' << (void*)temp << " ms"<< std::endl;
+
+            if (first_ptc_ptrs)
+                (*first_ptc_ptrs)[i] = temp;
+    
+            // cudaMallocManaged (&temp, 2 * 1024 * 1024);
+            // auto start = std::chrono::high_resolution_clock::now();
+            // initialize_memory<<<1,1>>>(temp + 64 * 1024, 1);
+            // cudaDeviceSynchronize();
+            // auto end = std::chrono::high_resolution_clock::now();
+
+            // gpuErrchk(cudaPeekAtLastError());
+            // std::chrono::duration<double, std::milli> duration_evict = end - start;
+            // double currentMS = duration_evict.count();
+            // std::cout << i << " New PT time: " << duration_evict.count() << ' ' << (void*)temp << " ms"<< std::endl;
+
+            // if (first_ptc_ptrs)
+            //     (*first_ptc_ptrs)[i] = temp;
+
+
+            *temp = 'a';
+            // if (j == 0)
+            //     cudaFree(temp);
+        }
 
         // Generate Page Table for 64KB Pages.
-        *(temp + 0) = 'a';
-
+        // *(temp + 0) = 'a';
         if (i < skip)
             continue;
     }
@@ -406,19 +422,5 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
             
     }
 
-
-    // for (int j = 0; j < 100; j++)
-    // {
-    //     evict_L2cache ((uint8_t *) ptc_ptrs[0]);
-    //     cudaDeviceSynchronize ();
-    //     /* Start the hammering and measure the time */
-    //     uint64_t time = start_multi_warp_hammer (
-    //         row_agg_pair.first, row_agg_pair.second, it, n, k, row_agg_pair.second.size (), delay, period);
-    // }
-
-    // std::cout << "First PTC Filled " << '\n';
-    // std::cin.clear();
-    // std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    // std::cin >> timein;
     return true;
 }

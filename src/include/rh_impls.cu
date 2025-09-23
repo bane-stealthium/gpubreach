@@ -100,7 +100,7 @@ uint64_t start_multi_warp_hammer(RowList &rows, std::vector<uint64_t> &agg_vec,
 
   // cudaMemcpy(&timeSpentHost, timeSpentDevice, sizeof(uint64_t *),
   //            cudaMemcpyDeviceToHost);
-  // cudaFree(agg_device_arr);
+  cudaFree(agg_device_arr);
   // cudaFree(timeSpentDevice);
   return toNS(timeSpentHost);
 }

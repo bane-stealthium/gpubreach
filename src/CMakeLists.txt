@@ -5,8 +5,7 @@ set(CMAKE_CUDA_STANDARD 17)
 set(CMAKE_CUDA_ARCHITECTURES 86)
 
 project(PT_SIDECHANNEL LANGUAGES CXX CUDA)
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O0 -Xcicc -O0 --generate-line-info -gencode=arch=compute_86,code=sm_86")
-# set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xptxas -dlcm=cg")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3 -Xcicc -O0 --generate-line-info -gencode=arch=compute_86,code=sm_86")
 
 include_directories(include)
 set(THREADS_PREFER_PTHREAD_FLAG ON)

