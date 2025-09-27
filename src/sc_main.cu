@@ -14,7 +14,7 @@ enum Task
   FIRST_PTC_ATK,
   SECOND_PTC_EVICT,
   SECOND_PTC,
-  SECOND_PTC_ATK,
+  SECOND_PTC_DUMP,
   INVALID
 };
 
@@ -27,6 +27,7 @@ static Task parseTask(const std::string& tsk) {
     if (tsk == "first_ptc_atk") return Task::FIRST_PTC_ATK;
     if (tsk == "second_ptc_evict") return Task::SECOND_PTC_EVICT;
     if (tsk == "second_ptc") return Task::SECOND_PTC;
+    if (tsk == "second_ptc_dump") return Task::SECOND_PTC;
     return Task::INVALID;
 }
 
@@ -50,7 +51,7 @@ int main (int argc, char *argv[])
     switch (parseTask(cmd))
     {
         case Task::ALL_MEM_EVICT:
-            alloc_all_mem_evcit(argc, argv, nullptr);
+            alloc_all_mem_evcit(argc, argv);
             break;
         case Task::ALL_MEM:
             alloc_all_mem(argc, argv, nullptr);
@@ -72,6 +73,8 @@ int main (int argc, char *argv[])
             break;
         case Task::SECOND_PTC:
             second_PT_chunk(argc, argv);
+            break;
+        case Task::SECOND_PTC_DUMP:
             break;
         case INVALID:
             std::cout << "Unkown Task.\n";

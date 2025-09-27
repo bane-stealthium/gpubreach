@@ -12,9 +12,7 @@
 #include <rh_utils.cuh> 
 #include <rh_impls.cuh>
 
-const size_t ALLOC_SIZE = 2 * 1024 * 1024;
-
-uint64_t alloc_all_mem_evcit(int argc, char *argv[], char ***alloc_ptrs)
+uint64_t alloc_all_mem_evcit(int argc, char *argv[])
 {
     const double threshold = std::stod(argv[0]);
     const uint64_t skip = std::stoull(argv[1]);
@@ -31,43 +29,30 @@ uint64_t alloc_all_mem_evcit(int argc, char *argv[], char ***alloc_ptrs)
     }
 
     uint64_t chunks = 0;
-    double maxTimeMS = 0;
-    if (alloc_ptrs)
-        *alloc_ptrs = (char**)malloc(sizeof(char*) * (total_byte / ALLOC_SIZE));
+    int probation = 0;
+    int probation_lim = 3;
+
     int device;
     cudaGetDevice(&device);
     cudaMallocManaged (&temp, total_byte);
     cudaMemPrefetchAsync(temp, 46L * 1024 * 1024 * 1024, device);
     cudaDeviceSynchronize();
+
     for (; chunks < total_byte; chunks += ALLOC_SIZE)
     {
-        if (alloc_ptrs)
-            (*alloc_ptrs)[chunks / ALLOC_SIZE] = temp;
-
-        auto start = std::chrono::high_resolution_clock::now();
-        initialize_memory<<<1,1>>>(temp, ALLOC_SIZE);
-        cudaDeviceSynchronize();
-        auto end = std::chrono::high_resolution_clock::now();
-        
-        gpuErrchk(cudaPeekAtLastError());
-        std::chrono::duration<double, std::milli> duration_evict = end - start;
-        double currentMS = duration_evict.count();
-        std::cout << chunks / ALLOC_SIZE << " New PT time: " << duration_evict.count() << " ms"<< std::endl;
+        double currentMS = time_data_access(temp, ALLOC_SIZE);
+        std::cout << chunks / ALLOC_SIZE << " Recorded time: " << currentMS << " ms"<< std::endl;
 
         temp += ALLOC_SIZE;
         if (chunks < 46L * 1024 * 1024 * 1024 + skip * ALLOC_SIZE)
             continue;
 
-        if (maxTimeMS == 0)
-            maxTimeMS = currentMS;
-        else if (currentMS > maxTimeMS && currentMS < threshold)
-            maxTimeMS = currentMS;
-        else if (currentMS > maxTimeMS)
+        probation += currentMS > threshold ? 1 : -probation;
+        if (probation == probation_lim)
         {
-            std::cout << total_byte << " " << free_byte << '\n';
-            std::cout <<  "After \033[1;31m" << (chunks / ALLOC_SIZE) << "\033[0m 2MB Allocations:" << std::endl;
-            std::cout << "Normal Latency: " << maxTimeMS << ", Mem Full Eviction Latency: " << duration_evict.count() << " ms"<< std::endl;
-            std::cout << "You should allocate until: " << (chunks / ALLOC_SIZE) << std::endl;
+            std::cout <<  "Spikes observed after allocation index \033[1;31m" << (chunks / ALLOC_SIZE) - probation_lim + 1 << "\033[0m" << std::endl;
+            std::cout << "This means you should perform at most \033[1m" << (chunks / ALLOC_SIZE)  - probation_lim + 1 << "\033[0m number of allocations to avoid eviction"<< std::endl;
+            std::cout << "Pass \033[1;32m" << (chunks / ALLOC_SIZE)  - probation_lim + 1 << "\033[0m as the limit in subsequent experiments."<< std::endl;
             return (chunks / ALLOC_SIZE);
         }
     }
@@ -86,40 +71,29 @@ bool alloc_all_mem(int argc, char *argv[], char ***alloc_ptrs)
 bool alloc_all_mem(uint64_t num_alloc, double threshold, uint64_t skip, char ***alloc_ptrs)
 {
     char *temp;
-    uint8_t *layout;
-    uint64_t i = 0;
     if (alloc_ptrs)
         *alloc_ptrs = (char**)malloc(sizeof(char*) * (num_alloc));
+
     int device;
-    double maxTimeMS = 0;
     cudaGetDevice(&device);
     cudaMallocManaged (&temp, num_alloc * ALLOC_SIZE);
     cudaMemPrefetchAsync(temp, 46L * 1024 * 1024 * 1024, device);
     cudaDeviceSynchronize();
-    layout = (uint8_t*)temp;
+
+    uint64_t i = 0;
     for (; i < num_alloc; i += 1)
     {
-        auto start = std::chrono::high_resolution_clock::now();
-        initialize_memory<<<1,1>>>(temp, ALLOC_SIZE);
-        cudaDeviceSynchronize();
-        auto end = std::chrono::high_resolution_clock::now();
-        
-        gpuErrchk(cudaPeekAtLastError());
-        std::chrono::duration<double, std::milli> duration_evict = end - start;
-        double currentMS = duration_evict.count();
+        double currentMS = time_data_access(temp, ALLOC_SIZE);
 
         if (alloc_ptrs)
             (*alloc_ptrs)[i] = temp;
 
-        std::cout << i << " New PT time: " << duration_evict.count() << " ms" << (void*)temp << std::endl;
+        std::cout << i << " Recorded time: " << currentMS << " ms" << (void*)temp << std::endl;
 
         temp += ALLOC_SIZE;
-        if (i < 23552 + skip)
-            continue;
-
     }
-    std::cout << "Memory Allocated to Full" << '\n';
-    std::cin >> device;
+    std::cout << "(Success) Memory Allocated to Full: Press \033[1;32mEnter Key\033[0m to continue..." << '\n';
+    pause();
 
     return true;
 }

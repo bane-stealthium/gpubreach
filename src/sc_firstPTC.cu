@@ -12,8 +12,6 @@
 #include <rh_utils.cuh> 
 #include <rh_impls.cuh>
 
-const size_t ALLOC_SIZE = 2 * 1024 * 1024;
-
 uint64_t first_PT_chunk_evict(int argc, char *argv[])
 {
     const uint64_t num_alloc = std::stoll(argv[0]);
@@ -41,40 +39,37 @@ uint64_t first_PT_chunk_evict(int argc, char *argv[])
 
     double maxTimeMS = 0;
     uint64_t max_alloc_chunks = total_byte / ALLOC_SIZE;
+
+    /**
+     * 1. First allocation will be a 4KB data Page eviction
+     * 2. Second eviction will be the PTC allocation
+     * 3. The 512th allocation will be a 4KB data Page eviction
+     * 3. Step 2 + 508 (508 PT + 4 PD0s = 2MB) is the next PTC allocation
+     */
+    uint64_t next_id = max_alloc_chunks;
     for (uint64_t i = 0; i < max_alloc_chunks; i += 1)
     {
-        for (int j = 0; j < 2 * 1024 * 1024; j += 4 * 1024)
-            *(alloc_ptrs[i] + j) = 'a';
-
         // Create Free Space
-        cudaMallocManaged(&temp, 2 * 1024 * 1024);
+        cudaMallocManaged(&temp, ALLOC_SIZE + 4096);
 
-        auto start = std::chrono::high_resolution_clock::now();
-        initialize_memory<<<1,1>>>(temp, 2 * 1024 * 1024);
-        cudaDeviceSynchronize();
-        auto end = std::chrono::high_resolution_clock::now();
+        double currentMS = time_data_access(temp + ALLOC_SIZE, 1);
+        std::cout << i << " New PT time: " << currentMS << " ms"<< std::endl;
 
-        gpuErrchk(cudaPeekAtLastError());
-        std::chrono::duration<double, std::milli> duration_evict = end - start;
-        double currentMS = duration_evict.count();
-        std::cout << i << " New PT time: " << duration_evict.count() << " ms"<< std::endl;
-
-        // Generate Page Table for 64KB Pages.
-        *(temp + 0) = 'a';
-
-        if (i < skip)
+        if (i < skip || i % 512 == 0)
             continue;
 
-        if (maxTimeMS == 0)
-            maxTimeMS = currentMS;
-        else if (currentMS > maxTimeMS && currentMS < threshold)
-            maxTimeMS = currentMS;
-        else if (currentMS > maxTimeMS)
+        if (currentMS > threshold && next_id == max_alloc_chunks)
         {
-            std::cout <<  "After \033[1;31m" << i << "\033[0m 2MB Allocations:" << std::endl;
-            std::cout << "Normal Latency: " << maxTimeMS << ", Mem Full Latency: " << duration_evict.count() << " ms"<< std::endl;
-            std::cin >> maxTimeMS;
-            return i + 1;
+            next_id = i + 508;
+            std::cout << "Found First Allocation Time: \033[1;31m" << " " << currentMS << "\033[0m." << std::endl;
+            std::cout << "Next Allocation Id: \033[1m" << " " << next_id << "\033[0m." << std::endl;
+        }
+        else if (currentMS > threshold)
+        {
+            std::cout << "Expected: id\033[1;32m " << next_id << "\033[0m. Expected id: ";
+            next_id == i ? std::cout << "\033[1;32m" : std::cout << "\033[1;31m";
+            std::cout << i << "\033[0m." << std::endl;
+            return i;
         }
     }
     return 0;

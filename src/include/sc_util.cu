@@ -1,5 +1,7 @@
+#include "sc_util.cuh"
 #include <sc_util.cuh>
 #include <algorithm>
+#include <chrono>
 
 __global__ void initialize_memory(char *array, uint64_t size)
 {
@@ -21,6 +23,26 @@ __global__ void print_memory(char *array, uint64_t size)
             printf("%x ", *(array+i + j) & 0xff);
         printf("\n");
     }
+}
+
+double
+time_data_access (char *array, uint64_t size)
+{
+    auto start = std::chrono::high_resolution_clock::now();
+    initialize_memory<<<1,1>>>(array, size);
+    cudaDeviceSynchronize();
+    auto end = std::chrono::high_resolution_clock::now();
+
+    gpuErrchk(cudaPeekAtLastError());
+    std::chrono::duration<double, std::milli> duration_evict = end - start;
+    return duration_evict.count();
+}
+
+void
+evict_from_device (char *array, uint64_t size)
+{
+    for (int j = 0; j < size; j += 64 * 1024)
+        *(array + j) = 'a';
 }
 
 __global__ void memset_ptr(char *array, uint64_t size)
@@ -114,4 +136,11 @@ get_aggressor_rows_from_offset (
     }
 
     return {rows, aggressors};
+}
+
+void
+pause ()
+{
+    std::cin.clear();
+    while (std::cin.get() != '\n');
 }

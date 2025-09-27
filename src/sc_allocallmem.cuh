@@ -13,7 +13,7 @@
  * @return uint64_t returns the number of allocations required.
   0 if did not observe, then something is wrong
  */
-uint64_t alloc_all_mem_evcit(int argc, char *argv[], char ***alloc_ptrs);
+uint64_t alloc_all_mem_evcit(int argc, char *argv[]);
 
 /**
  * @brief Allocates until the first memory eviction.
