@@ -13,7 +13,7 @@
  * @return uint64_t returns the number of allocations required.
   0 if did not observe, then something is wrong
  */
-uint64_t alloc_all_mem_evcit(int argc, char *argv[]);
+uint64_t alloc_all_mem_test(int argc, char *argv[]);
 
 /**
  * @brief Allocates until the first memory eviction.
@@ -25,11 +25,11 @@ uint64_t alloc_all_mem_evcit(int argc, char *argv[]);
  * @return true No evictions identified
  * @return false Eviction happend, something is wrong.
  */
-bool alloc_all_mem(uint64_t num_alloc, double threshold, uint64_t skip, char ***alloc_ptrs);
+bool alloc_all_mem(uint64_t num_alloc, double threshold, uint64_t skip, char ***alloc_ptrs = nullptr);
 
 /**
  * @brief Same as above but takes the arguments as command line, starting index 0.
  */
-bool alloc_all_mem(int argc, char *argv[], char ***alloc_ptrs);
+bool alloc_all_mem(int argc, char *argv[], char ***alloc_ptrs = nullptr);
 
 #endif /* SC_ALLOCALLMEM_CUH */

@@ -12,8 +12,7 @@
 #include <thread>
 
 bool
-first_PT_chunk_attack (uint64_t num_alloc_init, uint64_t num_alloc,
-                       uint64_t alloc_id, double threshold, uint64_t skip,
+first_PT_chunk_attack (uint64_t num_alloc_init, double threshold, uint64_t skip,
                        char ***out_first_ptc_ptrs, char **out_agg_ptr,
                        char **out_corrupted_ptr, char **out_victim_ptr, uint64_t* out_corrupt_id, uint64_t* out_victim_id)
 {
@@ -23,7 +22,7 @@ first_PT_chunk_attack (uint64_t num_alloc_init, uint64_t num_alloc,
   char *evict_ptr;
   RowList agg_row_list;
   std::vector<uint64_t> agg_vec;
-  if (!first_PT_chunk_fill (num_alloc_init, num_alloc, alloc_id, threshold,
+  if (!first_PT_chunk (num_alloc_init, threshold,
                             skip, &first_ptc_ptrs, &agg_ptrs, &evict_ptr,  &agg_row_list, &agg_vec))
     {
         printf("Error: First PTC Allocation is wrong\n");
@@ -165,10 +164,8 @@ first_PT_chunk_attack (int argc, char *argv[], char ***out_first_ptc_ptrs,
                        char **out_victim_ptr, uint64_t* out_corrupt_id, uint64_t* out_victim_id)
 {
     const uint64_t num_alloc_init = std::stoll(argv[0]);
-    const uint64_t num_alloc = std::stoll(argv[1]);
-    const uint64_t alloc_id = std::stoll(argv[2]);
-    const double threshold = std::stod(argv[3]);
-    const uint64_t skip = std::stoull(argv[4]);
+    const double threshold = std::stod(argv[1]);
+    const uint64_t skip = std::stoull(argv[2]);
 
-    return first_PT_chunk_attack(num_alloc_init, num_alloc, alloc_id, threshold, skip, out_first_ptc_ptrs, out_agg_ptr, out_corrupted_ptr, out_victim_ptr, nullptr, nullptr);
+    return first_PT_chunk_attack(num_alloc_init, threshold, skip, out_first_ptc_ptrs, out_agg_ptr, out_corrupted_ptr, out_victim_ptr, nullptr, nullptr);
 }

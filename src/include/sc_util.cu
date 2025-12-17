@@ -6,8 +6,15 @@
 __global__ void initialize_memory(char *array, uint64_t size)
 {
     for (uint64_t i = 0; i < size; i += 4 * 1024)
-        *(array+i) = 'U';
+        *(array + i) = 'U';
 }
+
+// __global__ void initialize_memory_time(char *array, uint64_t size)
+// {
+//     int id = (blockIdx.x *blockDim.x + threadIdx.x) * 4096;
+//     if (id < size)
+//         *(array + id) = 'U';
+// }
 
 __global__ void initialize_memory_full(char *array, uint64_t size)
 {
@@ -28,8 +35,9 @@ __global__ void print_memory(char *array, uint64_t size)
 double
 time_data_access (char *array, uint64_t size)
 {
+    // uint64_t threads = std::ceil(size / 4096.0);
     auto start = std::chrono::high_resolution_clock::now();
-    initialize_memory<<<1,1>>>(array, size);
+    initialize_memory<<<1, 1>>>(array, size);
     cudaDeviceSynchronize();
     auto end = std::chrono::high_resolution_clock::now();
 

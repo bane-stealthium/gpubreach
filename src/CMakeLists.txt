@@ -4,6 +4,7 @@ set(CMAKE_CUDA_STANDARD 17)
 
 set(CMAKE_CUDA_ARCHITECTURES 86)
 
+include_directories("/usr/local/cuda12.3/include")
 project(PT_SIDECHANNEL LANGUAGES CXX CUDA)
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3 -Xcicc -O0 --generate-line-info -gencode=arch=compute_86,code=sm_86")
 

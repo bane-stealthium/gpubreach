@@ -7,16 +7,14 @@ uint64_t
 second_PT_chunk_evict (int argc, char *argv[])
 {
   const uint64_t num_alloc_init = std::stoll (argv[0]);
-  const uint64_t num_alloc = std::stoll (argv[1]);
-  const uint64_t alloc_id = std::stoll (argv[2]);
-  const double threshold = std::stod (argv[3]);
-  const uint64_t skip = std::stoull (argv[4]);
+  const double threshold = std::stod (argv[1]);
+  const uint64_t skip = std::stoull (argv[2]);
 
   char *temp;
   char **first_ptc_ptrs;
   char *agg_ptr, *corrupted_ptr, *victim_ptr;
   int timein;
-  if (!first_PT_chunk_attack (num_alloc_init, num_alloc, alloc_id, threshold,
+  if (!first_PT_chunk_attack (num_alloc_init, threshold,
                               skip, &first_ptc_ptrs, &agg_ptr, &corrupted_ptr,
                               &victim_ptr, nullptr, nullptr))
     {
@@ -72,8 +70,8 @@ second_PT_chunk_evict (int argc, char *argv[])
 }
 
 bool
-second_PT_chunk (uint64_t num_alloc_init, uint64_t num_alloc,
-                 uint64_t num_alloc_second, uint64_t alloc_id,
+second_PT_chunk (uint64_t num_alloc_init,
+                 uint64_t num_alloc_second,
                  double threshold, uint64_t skip)
 {
   char *temp;
@@ -81,7 +79,7 @@ second_PT_chunk (uint64_t num_alloc_init, uint64_t num_alloc,
   char *agg_ptr, *corrupted_ptr, *victim_ptr;
   uint64_t corrupt_id, victim_id;
   int timein;
-  if (!first_PT_chunk_attack (num_alloc_init, num_alloc, alloc_id, threshold,
+  if (!first_PT_chunk_attack (num_alloc_init, threshold,
                               skip, &first_ptc_ptrs, &agg_ptr, &corrupted_ptr,
                               &victim_ptr, &corrupt_id, &victim_id))
     {
@@ -145,12 +143,9 @@ bool
 second_PT_chunk (int argc, char *argv[])
 {
   const uint64_t num_alloc_init = std::stoll (argv[0]);
-  const uint64_t num_alloc = std::stoll (argv[1]);
-  const uint64_t num_alloc_second = std::stoll (argv[2]);
-  const uint64_t alloc_id = std::stoll (argv[3]);
-  const double threshold = std::stod (argv[4]);
-  const uint64_t skip = std::stoull (argv[5]);
+  const uint64_t num_alloc_second = std::stoll (argv[1]);
+  const double threshold = std::stod (argv[2]);
+  const uint64_t skip = std::stoull (argv[3]);
 
-  return second_PT_chunk (num_alloc_init, num_alloc, num_alloc_second,
-                          alloc_id, threshold, skip);
+  return second_PT_chunk (num_alloc_init, num_alloc_second, threshold, skip);
 }

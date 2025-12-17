@@ -8,8 +8,7 @@
 #ifndef SC_FIRSTPTC_ATTACK_CUH
 #define SC_FIRSTPTC_ATTACK_CUH
 
-bool first_PT_chunk_attack (uint64_t num_alloc_init, uint64_t num_alloc,
-                            uint64_t alloc_id, double threshold, uint64_t skip,
+bool first_PT_chunk_attack (uint64_t num_alloc_init, double threshold, uint64_t skip,
                             char ***out_first_ptc_ptrs, char **out_agg_ptr,
                             char **out_corrupted_ptr, char **out_victim_ptr,
                         uint64_t* out_corrupt_id, uint64_t* out_victim_id);

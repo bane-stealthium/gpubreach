@@ -16,7 +16,7 @@
  */
 uint64_t second_PT_chunk_evict(int argc, char *argv[]);
 
-bool second_PT_chunk(uint64_t num_alloc_init, uint64_t num_alloc, uint64_t num_alloc_second, uint64_t alloc_id, double threshold, uint64_t skip);
+bool second_PT_chunk(uint64_t num_alloc_init, uint64_t num_alloc_second, double threshold, uint64_t skip);
 
 bool second_PT_chunk(int argc, char *argv[]);
 
