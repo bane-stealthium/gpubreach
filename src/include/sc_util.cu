@@ -3,26 +3,14 @@
 #include <algorithm>
 #include <chrono>
 
-__global__ void initialize_memory(char *array, uint64_t size)
+__global__ void initialize_memory(uint8_t *array, uint64_t size)
 {
-    for (uint64_t i = 0; i < size; i += 4 * 1024)
-        *(array + i) = 'U';
+    int id = (blockIdx.x *blockDim.x + threadIdx.x) * 4096;
+    if (id < size)
+        *(array + id) = 0;
 }
 
-// __global__ void initialize_memory_time(char *array, uint64_t size)
-// {
-//     int id = (blockIdx.x *blockDim.x + threadIdx.x) * 4096;
-//     if (id < size)
-//         *(array + id) = 'U';
-// }
-
-__global__ void initialize_memory_full(char *array, uint64_t size)
-{
-    for (uint64_t i = 0; i < size; i += 1)
-        *(array+i) = 'U';
-}
-
-__global__ void print_memory(char *array, uint64_t size)
+__global__ void print_memory(uint8_t *array, uint64_t size)
 {
     for (uint64_t i = 0; i < size; i += 8)
     {
@@ -33,11 +21,11 @@ __global__ void print_memory(char *array, uint64_t size)
 }
 
 double
-time_data_access (char *array, uint64_t size)
+time_data_access (uint8_t *array, uint64_t size)
 {
-    // uint64_t threads = std::ceil(size / 4096.0);
+    uint64_t threads = std::ceil(size / 4096.0);
     auto start = std::chrono::high_resolution_clock::now();
-    initialize_memory<<<1, 1>>>(array, size);
+    initialize_memory<<<1, threads>>>(array, size);
     cudaDeviceSynchronize();
     auto end = std::chrono::high_resolution_clock::now();
 
@@ -47,16 +35,17 @@ time_data_access (char *array, uint64_t size)
 }
 
 void
-evict_from_device (char *array, uint64_t size)
+evict_from_device (uint8_t *array, uint64_t size)
 {
     for (int j = 0; j < size; j += 64 * 1024)
         *(array + j) = 'a';
 }
 
-__global__ void memset_ptr(char *array, uint64_t size)
+__global__ void memset_ptr(uint8_t *array, uint64_t size)
 {
-    for (uint64_t i = 0; i < size; i+=64*1024)
-        *(char **)(array + i) = array + i;
+    int id = (blockIdx.x *blockDim.x + threadIdx.x) * 64 * 1024;
+    if (id < size)
+        *(uint8_t **)(array + id) = array + id;
 }
 
 std::map<uint64_t, std::vector<uint64_t> >

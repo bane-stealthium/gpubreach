@@ -12,7 +12,7 @@ include_directories(include)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
-add_library(sc_lib ./sc_allocallmem.cu ./sc_firstPTC.cu ./sc_firstPTC_hammer.cu ./sc_secondPTC.cu ./include/sc_util.cu)
+add_library(sc_lib ./sc_allocallmem.cu ./sc_firstRegion.cu ./sc_firstRegion_hammer.cu ./sc_secondRegion.cu ./include/sc_util.cu)
 
 add_library(hammer_lib ./include/rh_kernels.cu ./include/rh_utils.cu ./include/rh_impls.cu)
 target_link_libraries(hammer_lib PUBLIC Threads::Threads)

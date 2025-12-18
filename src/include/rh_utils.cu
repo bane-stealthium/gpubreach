@@ -238,8 +238,8 @@ uint64_t toNS(uint64_t time)
   {
     struct cudaDeviceProp device_prop;
     cudaGetDeviceProperties(&device_prop, 0);
-    std::cout << "Stable Max Clock Rate: "
-              << ((long double)(device_prop.clockRate)) * 1000 << '\n';
+    // std::cout << "Stable Max Clock Rate: "
+    //           << ((long double)(device_prop.clockRate)) * 1000 << '\n';
     // std::cout << "Using Current Clock Rate: " << ((long double)(val)) <<
     // '\n';
     return ((long double)(device_prop.clockRate)) * 1000;

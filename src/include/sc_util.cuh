@@ -28,21 +28,20 @@ inline bool debug_enabled() {
 
 /* Memory size where the GPUHammer RowSet was performed on, 
    required for GPUHammer to perform correctly.
+   Should be slightly less than max size, e.g. 46 for 48GB VRAM or 15 for 16GB VRAM
 */
 const size_t RH_LIMIT = 46L * 1024 * 1024 * 1024; 
 const size_t ALLOC_SIZE = 2 * 1024 * 1024;
 
-__global__ void initialize_memory(char *array, uint64_t size);
+__global__ void initialize_memory(uint8_t *array, uint64_t size);
 
-__global__ void initialize_memory_full(char *array, uint64_t size);
+__global__ void memset_ptr(uint8_t *array, uint64_t size);
 
-__global__ void memset_ptr(char *array, uint64_t size);
+__global__ void print_memory(uint8_t *array, uint64_t size);
 
-__global__ void print_memory(char *array, uint64_t size);
+double time_data_access(uint8_t *array, uint64_t size);
 
-double time_data_access(char *array, uint64_t size);
-
-void evict_from_device(char *array, uint64_t size);
+void evict_from_device(uint8_t *array, uint64_t size);
 
 void pause();
 

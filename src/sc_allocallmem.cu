@@ -1,102 +1,116 @@
-#include <iostream>
-#include <fstream>
-#include <cuda.h>
-#include <chrono>
-#include <string>
-#include <string>
-#include <cmath>
-#include <numeric>
-#include <vector>
 #include "./sc_allocallmem.cuh"
-#include <rh_kernels.cuh>
-#include <rh_utils.cuh> 
+#include <chrono>
+#include <cmath>
+#include <cuda.h>
+#include <fstream>
+#include <iostream>
+#include <numeric>
 #include <rh_impls.cuh>
+#include <rh_kernels.cuh>
+#include <rh_utils.cuh>
+#include <string>
+#include <vector>
 
-uint64_t alloc_all_mem_test(int argc, char *argv[])
+uint64_t
+alloc_all_mem_test (int argc, char *argv[])
 {
-    const double threshold = std::stod(argv[0]);
-    const uint64_t skip = std::stoull(argv[1]);
+  const double threshold = std::stod (argv[0]);
+  const uint64_t skip = std::stoull (argv[1]);
 
-    char *temp;
-    size_t total_byte;
-    auto cuda_status = cudaMemGetInfo(nullptr, &total_byte);
-    if ( cudaSuccess != cuda_status )
+  uint8_t *temp;
+  size_t total_byte;
+  auto cuda_status = cudaMemGetInfo (nullptr, &total_byte);
+  if (cudaSuccess != cuda_status)
     {
-        printf("Error: cudaMemGetInfo fails, %s \n", cudaGetErrorString(cuda_status));
-        exit(1);
+      printf ("Error: cudaMemGetInfo fails, %s \n",
+              cudaGetErrorString (cuda_status));
+      exit (1);
     }
 
-    uint64_t chunks = 0;
-    int consec_spike = 0;
-    int consec_spike_lim = 3;
+  uint64_t chunks = 0;
+  int consec_spike = 0;
+  int consec_spike_lim = 3;
 
-    // Prefetch RH_Limit amount of memory as we will do in actual attack.
-    // Required step for GPUHammer to work.
-    int device;
-    cudaGetDevice(&device);
-    cudaMallocManaged (&temp, total_byte);
-    cudaMemPrefetchAsync(temp, RH_LIMIT, device);
-    cudaDeviceSynchronize();
+  // Prefetch RH_Limit amount of memory as we will do in actual attack.
+  // Required step for GPUHammer to work.
+  int device;
+  cudaGetDevice (&device);
+  cudaMallocManaged (&temp, total_byte);
+  cudaMemPrefetchAsync (temp, RH_LIMIT, device);
+  cudaDeviceSynchronize ();
 
-    for (; chunks < total_byte; chunks += ALLOC_SIZE)
+  for (; chunks < total_byte; chunks += ALLOC_SIZE)
     {
-        double currentMS = time_data_access(temp, ALLOC_SIZE);
-        DBG_OUT << chunks / ALLOC_SIZE << " Recorded time: " << currentMS << " ms"<< std::endl;
+      double currentMS = time_data_access (temp, ALLOC_SIZE);
+      DBG_OUT << chunks / ALLOC_SIZE << " Recorded time: " << currentMS
+              << " ms" << std::endl;
 
-        temp += ALLOC_SIZE;
-        
-        // No need to check time for prefetched memory and skipped memory (Skip is useless here TBH).
-        if (chunks < RH_LIMIT + skip * ALLOC_SIZE)
-            continue;
+      temp += ALLOC_SIZE;
 
-        // Look for consecutive spikes, reset if not.
-        consec_spike += currentMS > threshold ? 1 : -consec_spike;
-        if (consec_spike == consec_spike_lim)
+      // No need to check time for prefetched memory and skipped memory (Skip
+      // is useless here TBH).
+      if (chunks < RH_LIMIT + skip * ALLOC_SIZE)
+        continue;
+
+      // Look for consecutive spikes, reset if not.
+      consec_spike += currentMS > threshold ? 1 : -consec_spike;
+      if (consec_spike == consec_spike_lim)
         {
-            std::cout <<  "Spikes observed after allocation index \033[1;31m" << (chunks / ALLOC_SIZE) - consec_spike_lim + 1 << "\033[0m" << std::endl;
-            std::cout << "This means you should perform at most \033[1m" << (chunks / ALLOC_SIZE)  - consec_spike_lim + 1 << "\033[0m number of allocations to avoid eviction"<< std::endl;
-            std::cout << "Pass \033[1;32m" << (chunks / ALLOC_SIZE)  - consec_spike_lim + 1 << "\033[0m as the limit in subsequent experiments."<< std::endl;
-            return (chunks / ALLOC_SIZE);
+          std::cout << "Spikes observed after allocation index \033[1;31m"
+                    << (chunks / ALLOC_SIZE) - consec_spike_lim + 1
+                    << "\033[0m" << std::endl;
+          std::cout << "This means you should perform at most \033[1m"
+                    << (chunks / ALLOC_SIZE) - consec_spike_lim + 1
+                    << "\033[0m number of allocations to avoid eviction"
+                    << std::endl;
+          std::cout << "Pass \033[1;32m"
+                    << (chunks / ALLOC_SIZE) - consec_spike_lim + 1
+                    << "\033[0m as the limit in subsequent experiments."
+                    << std::endl;
+          return (chunks / ALLOC_SIZE);
         }
     }
-    return 0;
+  return 0;
 }
 
-bool alloc_all_mem(int argc, char *argv[], char ***alloc_ptrs)
+bool
+alloc_all_mem (int argc, char *argv[], std::vector<uint8_t *> *alloc_ptrs)
 {
-    const uint64_t num_alloc = std::stoll(argv[0]);
-    const double threshold = std::stod(argv[1]);
-    const uint64_t skip = std::stoull(argv[2]);
+  const uint64_t num_alloc = std::stoll (argv[0]);
+  const double threshold = std::stod (argv[1]);
+  const uint64_t skip = std::stoull (argv[2]);
 
-    return alloc_all_mem(num_alloc, threshold, skip, alloc_ptrs);
+  return alloc_all_mem (num_alloc, threshold, skip, alloc_ptrs);
 }
 
-bool alloc_all_mem(uint64_t num_alloc, double threshold, uint64_t skip, char ***alloc_ptrs)
+bool
+alloc_all_mem (uint64_t num_alloc, double threshold, uint64_t skip,
+               std::vector<uint8_t *> *alloc_ptrs)
 {
-    char *temp;
-    if (alloc_ptrs)
-        *alloc_ptrs = (char**)malloc(sizeof(char*) * (num_alloc));
+  uint8_t *temp;
+  int device;
+  cudaGetDevice (&device);
+  cudaMallocManaged (&temp, num_alloc * ALLOC_SIZE);
+  cudaMemPrefetchAsync (temp, RH_LIMIT, device);
+  cudaDeviceSynchronize ();
 
-    int device;
-    cudaGetDevice(&device);
-    cudaMallocManaged (&temp, num_alloc * ALLOC_SIZE);
-    cudaMemPrefetchAsync(temp, RH_LIMIT, device);
-    cudaDeviceSynchronize();
-
-    uint64_t i = 0;
-    for (; i < num_alloc; i += 1)
+  uint64_t i = 0;
+  for (; i < num_alloc; i += 1)
     {
-        double currentMS = time_data_access(temp, ALLOC_SIZE);
+      double currentMS = time_data_access (temp, ALLOC_SIZE);
 
-        if (alloc_ptrs)
-            (*alloc_ptrs)[i] = temp;
+      if (alloc_ptrs)
+        alloc_ptrs->push_back (temp);
 
-        DBG_OUT << i << " Recorded time: " << currentMS << " ms" << (void*)temp << std::endl;
+      DBG_OUT << i << " Recorded time: " << currentMS << " ms" << (void *)temp
+              << std::endl;
 
-        temp += ALLOC_SIZE;
+      temp += ALLOC_SIZE;
     }
-    std::cout << "(Success) Memory Allocated to Full: Press \033[1;32mEnter Key\033[0m to continue..." << '\n';
-    pause();
+  std::cout << "(Step 1 Success) Memory Allocated to Full: Press "
+               "\033[1;32mEnter Key\033[0m to continue..."
+            << '\n';
+  pause ();
 
-    return true;
+  return true;
 }
