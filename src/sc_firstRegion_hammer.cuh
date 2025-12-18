@@ -6,9 +6,20 @@
 #define SC_FIRSTREGION_ATTACK_CUH
 
 /**
+ * @brief Test memory limit after Step 2 Massaging.
+ *
+ * @param argc 3
+ * @param argv [0] num_alloc_init [1] threshold [2] skip. Detail see
+ * first_PT_region_attack comment.
+ */
+void
+first_PT_region_attack_test (int argc, char *argv[]);
+
+/**
  * @brief Step 3, Hammer the PT region PTEs, repeat until corrupted
  *
  * @param num_alloc_init size of allocation for alloc_all_mem
+ * @param num_alloc_post_msg memory limit after massaging
  * @param threshold time deemed to be evictions
  * @param skip first few entries in case timing isn't reliable
  * @param out_region_ptrs returns memory pointers used to fill VRAM
@@ -21,7 +32,7 @@
  * @return false, Something is wrong. True otherwise.
  */
 bool first_PT_region_attack (
-    uint64_t num_alloc_init, double threshold, uint64_t skip,
+    uint64_t num_alloc_init, uint64_t num_alloc_post_msg, double threshold, uint64_t skip,
     uint8_t ***out_region_ptrs = nullptr, uint8_t **out_agg_ptr = nullptr,
     uint8_t **out_corrupted_ptr = nullptr, uint8_t **out_victim_ptr = nullptr,
     uint64_t *out_corrupt_id = nullptr, uint64_t *out_victim_id = nullptr);

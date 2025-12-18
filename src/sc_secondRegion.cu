@@ -4,15 +4,16 @@
 #include <thread>
 
 bool
-second_PT_region (uint64_t num_alloc_init, double threshold, uint64_t skip)
+second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg,
+                  double threshold, uint64_t skip)
 {
   uint8_t *temp;
   uint8_t **region_ptrs;
   uint8_t *agg_ptr, *corrupted_ptr, *victim_ptr;
   uint64_t out_corrupt_id, out_victim_id;
-  if (!first_PT_region_attack (num_alloc_init, threshold, skip, &region_ptrs,
-                               &agg_ptr, &corrupted_ptr, &victim_ptr,
-                               &out_corrupt_id, &out_victim_id))
+  if (!first_PT_region_attack (num_alloc_init, num_alloc_post_msg, threshold,
+                               skip, &region_ptrs, &agg_ptr, &corrupted_ptr,
+                               &victim_ptr, &out_corrupt_id, &out_victim_id))
     {
       printf ("Error: First PTC Allocation is wrong\n");
       exit (1);
@@ -56,8 +57,9 @@ bool
 second_PT_region (int argc, char *argv[])
 {
   const uint64_t num_alloc_init = std::stoll (argv[0]);
-  const double threshold = std::stod (argv[1]);
-  const uint64_t skip = std::stoull (argv[2]);
+  const uint64_t num_alloc_post_msg = std::stoll (argv[1]);
+  const double threshold = std::stod (argv[2]);
+  const uint64_t skip = std::stoull (argv[3]);
 
-  return second_PT_region (num_alloc_init, threshold, skip);
+  return second_PT_region (num_alloc_init, num_alloc_post_msg, threshold, skip);
 }

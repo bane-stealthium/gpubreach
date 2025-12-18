@@ -183,6 +183,13 @@ first_PT_region (uint64_t num_alloc_init, double threshold, uint64_t skip,
   /****************************************************************/
   /* Unfortunately the Rowhammer Bit-flip is currently hardcoded. */
   /* Future plan: add configuration files instead of cmdline args */
+
+  /**
+   * This variable controls which page in 'alloc_ptrs' we massage
+   * the PT region to. Given a page is 2MB, changing it to whatever
+   * page you'd like that fits in your VRAM, but 1000-3000 should be
+   * feasible on most GPUs (8GB+).
+   */
   auto last_hammer_page = hardcoded_rowhammer_bitflip_page (
       alloc_ptrs, agg_ptrs, agg_row_list, agg_vec);
 
