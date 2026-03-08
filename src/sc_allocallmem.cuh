@@ -7,7 +7,7 @@
 
 /**
  * @brief Test side-channel of Section 4.4, allocates until the first memory
- eviction.
+ * eviction.
  *
  * @param argc 2
  * @param argv [0] threshold [1] skip. Detail see alloc_all_mem comment.

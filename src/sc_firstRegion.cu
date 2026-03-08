@@ -91,7 +91,7 @@ hardcoded_rowhammer_bitflip_page (std::vector<uint8_t *> &alloc_ptrs,
   const uint64_t min_rowId = 30329 - 94;
   const uint64_t max_rowId = 30329 + 5;
   const uint64_t row_step = 4;
-  const uint64_t num_rows = 64100;
+  const uint64_t num_rows = 31400;
   const uint64_t agg_pat = std::stoull ("0xAA", nullptr, 16);
 
   std::ifstream row_set_file ("/home/rootuser/gpuhammer-reloaded/gpuhammer/"

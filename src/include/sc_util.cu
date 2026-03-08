@@ -7,16 +7,34 @@ __global__ void initialize_memory(uint8_t *array, uint64_t size)
 {
     int id = (blockIdx.x *blockDim.x + threadIdx.x) * 4096;
     if (id < size)
-        *(array + id) = 0;
+        *(uint8_t**)(array + id) = array + id;
+}
+
+__global__ void initialize_memory_loop(uint8_t *array, uint64_t size)
+{
+    for (uint64_t i = 0; i < size; i += 8)
+        *(uint8_t**)(array + i) = array + i;
 }
 
 __global__ void print_memory(uint8_t *array, uint64_t size)
 {
     for (uint64_t i = 0; i < size; i += 8)
     {
+        int sum = 0;
         for (uint64_t j = 0; j < 8; j++)
-            printf("%x ", *(array+i + j) & 0xff);
-        printf("\n");
+        {
+            sum += *(array+i + j) & 0xff;
+        }
+        if (sum != 0)
+        {
+            printf("%x: ", i);
+            for (uint64_t j = 0; j < 8; j++)
+            {
+                printf("%x ", *(array+i + j) & 0xff);
+            }
+                
+            printf("\n");
+        }
     }
 }
 
@@ -41,11 +59,11 @@ evict_from_device (uint8_t *array, uint64_t size)
         *(array + j) = 'a';
 }
 
-__global__ void memset_ptr(uint8_t *array, uint64_t size)
+__global__ void memset_ptr(uint8_t *dst, uint64_t src, uint64_t size)
 {
-    int id = (blockIdx.x *blockDim.x + threadIdx.x) * 64 * 1024;
-    if (id < size)
-        *(uint8_t **)(array + id) = array + id;
+    for (size_t i = 0; i < size; i += 8) {
+        *(uint64_t*)(dst + i) = src; // array-style access
+    }
 }
 
 std::map<uint64_t, std::vector<uint64_t> >
@@ -140,4 +158,18 @@ pause ()
 {
     std::cin.clear();
     while (std::cin.get() != '\n');
+}
+
+
+void gen_64KB(char *array, uint64_t size){
+    for (uint64_t i = 0; i < size; i += 2 * 1024 * 1024)
+        *(char**)(array + i) = (array + i);
+}
+
+__global__ void simple_flush(char *array, uint64_t size){
+    for (uint64_t i = 0; i < size; i += 64 * 1024)
+    {
+        if (( i % (2 * 1024 * 1024) ) != 0)
+            *(char**)(array + i) = (array + i);
+    }
 }

