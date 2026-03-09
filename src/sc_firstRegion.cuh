@@ -1,5 +1,5 @@
 #include <iostream>
-#include <sc_util.cuh>
+#include <gpubreach_util.cuh>
 #include <stdint.h>
 
 #ifndef SC_FIRSTREGION_CUH
@@ -28,18 +28,12 @@ void first_PT_region_test (int argc, char *argv[]);
  * GPUHammer
  * @return false, Something is wrong. True otherwise.
  */
-bool first_PT_region (uint64_t num_alloc_init, double threshold, uint64_t skip,
-                      std::vector<uint8_t *> *agg_ptrs = nullptr,
-                      RowList *agg_row_list = nullptr,
-                      std::vector<uint64_t> *agg_vec = nullptr);
+bool first_PT_region (uint64_t num_alloc_init, double threshold, uint64_t skip, GPUBreachContext& ctx);
 
 /**
  * @brief Same as above but takes the arguments as command line, starting index
  * 0.
  */
-bool first_PT_region (int argc, char *argv[],
-                      std::vector<uint8_t *> *agg_ptrs = nullptr,
-                      RowList *agg_row_list = nullptr,
-                      std::vector<uint64_t> *agg_vec = nullptr);
+bool first_PT_region (int argc, char *argv[]);
 
 #endif /* SC_FIRSTREGION_CUH */

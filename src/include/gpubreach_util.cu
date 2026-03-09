@@ -1,5 +1,4 @@
-#include "sc_util.cuh"
-#include <sc_util.cuh>
+#include <gpubreach_util.cuh>
 #include <algorithm>
 #include <chrono>
 

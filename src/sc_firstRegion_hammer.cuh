@@ -1,5 +1,5 @@
 #include <iostream>
-#include <sc_util.cuh>
+#include <gpubreach_util.cuh>
 #include <stdint.h>
 
 #ifndef SC_FIRSTREGION_ATTACK_CUH
@@ -32,21 +32,12 @@ first_PT_region_attack_test (int argc, char *argv[]);
  * @return false, Something is wrong. True otherwise.
  */
 bool first_PT_region_attack (
-    uint64_t num_alloc_init, uint64_t num_alloc_post_msg, double threshold, uint64_t skip,
-    uint8_t ***out_region_ptrs = nullptr, uint8_t **out_agg_ptr = nullptr,
-    uint8_t **out_corrupted_ptr = nullptr, uint8_t **out_victim_ptr = nullptr,
-    uint64_t *out_corrupt_id = nullptr, uint64_t *out_victim_id = nullptr);
+    uint64_t num_alloc_init, uint64_t num_alloc_post_msg, double threshold, uint64_t skip, GPUBreachContext& ctx);
 
 /**
  * @brief Same as above but takes the arguments as command line, starting index
  * 0.
  */
-bool first_PT_region_attack (int argc, char *argv[],
-                             uint8_t ***out_region_ptrs = nullptr,
-                             uint8_t **out_agg_ptr = nullptr,
-                             uint8_t **out_corrupted_ptr = nullptr,
-                             uint8_t **out_victim_ptr = nullptr,
-                             uint64_t *out_corrupt_id = nullptr,
-                             uint64_t *out_victim_id = nullptr);
+bool first_PT_region_attack (int argc, char *argv[]);
 
 #endif /* SC_FIRSTREGION_ATTACK_CUH */

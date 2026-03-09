@@ -74,18 +74,18 @@ alloc_all_mem_test (int argc, char *argv[])
 }
 
 bool
-alloc_all_mem (int argc, char *argv[], std::vector<uint8_t *> *alloc_ptrs)
+alloc_all_mem (int argc, char *argv[])
 {
   const uint64_t num_alloc = std::stoll (argv[0]);
   const double threshold = std::stod (argv[1]);
   const uint64_t skip = std::stoull (argv[2]);
+  GPUBreachContext ctx;
 
-  return alloc_all_mem (num_alloc, threshold, skip, alloc_ptrs);
+  return alloc_all_mem (num_alloc, threshold, skip, ctx);
 }
 
 bool
-alloc_all_mem (uint64_t num_alloc, double threshold, uint64_t skip,
-               std::vector<uint8_t *> *alloc_ptrs)
+alloc_all_mem (uint64_t num_alloc, double threshold, uint64_t skip, GPUBreachContext &ctx)
 {
   uint8_t *temp;
   int device;
@@ -99,8 +99,7 @@ alloc_all_mem (uint64_t num_alloc, double threshold, uint64_t skip,
     {
       double currentMS = time_data_access (temp, ALLOC_SIZE);
 
-      if (alloc_ptrs)
-        alloc_ptrs->push_back (temp);
+      ctx.step1_data.alloc_ptrs.push_back (temp);
 
       DBG_OUT << i << " Recorded time: " << currentMS << " ms" << (void *)temp
               << std::endl;

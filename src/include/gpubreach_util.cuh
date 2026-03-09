@@ -7,8 +7,32 @@
 #include <string>
 #include <algorithm>
 
-#ifndef SC_UTIL_CUH
-#define SC_UTIL_CUH
+#ifndef GPUBREACH_UTIL_CUH
+#define GPUBREACH_UTIL_CUH
+
+struct GPUBreachContext {
+    struct S1_FullMem{
+        std::vector<uint8_t *> alloc_ptrs;
+    };
+    S1_FullMem step1_data;
+
+    struct S2_MsgFirstRegion{
+        std::vector<uint8_t *> agg_ptrs;
+        RowList agg_row_list;
+        std::vector<uint64_t> agg_vec;
+    };
+    S2_MsgFirstRegion step2_data;
+
+    struct S3_CorruptPTE{
+        std::vector<uint8_t *> agg_ptrs; // Keep it to ensure full memory
+        std::vector<uint8_t *> region_ptrs;
+        uint8_t *corrupted_ptr;
+        uint8_t *victim_ptr;
+        uint64_t corrupted_id;
+        uint64_t victim_id;
+    };
+    S3_CorruptPTE step3_data;
+};
 
 inline bool debug_enabled() {
     static bool enabled = [] {
@@ -81,4 +105,4 @@ void cudaMemcpyArray(T* dst, const T* src, size_t numElements, cudaMemcpyKind ki
     }
 }
 
-#endif /* SC_UTIL_CUH */
+#endif /* GPUBREACH_UTIL_CUH */

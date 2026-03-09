@@ -1,4 +1,4 @@
-#include <sc_util.cuh>
+#include <gpubreach_util.cuh>
 #include <stdint.h>
 #include <vector>
 
@@ -26,14 +26,12 @@ uint64_t alloc_all_mem_test (int argc, char *argv[]);
  * @return true No evictions identified
  * @return false Eviction happend, something is wrong.
  */
-bool alloc_all_mem (uint64_t num_alloc, double threshold, uint64_t skip,
-                    std::vector<uint8_t *> *alloc_ptrs = nullptr);
+bool alloc_all_mem (uint64_t num_alloc, double threshold, uint64_t skip, GPUBreachContext& ctx);
 
 /**
  * @brief Same as above but takes the arguments as command line, starting index
  * 0.
  */
-bool alloc_all_mem (int argc, char *argv[],
-                    std::vector<uint8_t *> *alloc_ptrs = nullptr);
+bool alloc_all_mem (int argc, char *argv[]);
 
 #endif /* SC_ALLOCALLMEM_CUH */

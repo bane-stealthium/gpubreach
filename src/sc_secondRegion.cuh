@@ -1,5 +1,5 @@
 #include <iostream>
-#include <sc_util.cuh>
+#include <gpubreach_util.cuh>
 #include <stdint.h>
 
 #ifndef SC_SECONDREGION_CUH
