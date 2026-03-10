@@ -1,5 +1,5 @@
-#include "./sc_allocallmem.cuh"
-#include "./sc_firstRegion.cuh"
+#include "./s1_allocallmem.cuh"
+#include "./s2_firstRegion.cuh"
 #include <algorithm>
 #include <chrono>
 #include <cmath>

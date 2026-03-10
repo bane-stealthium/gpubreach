@@ -2,8 +2,8 @@
 #include <gpubreach_util.cuh>
 #include <stdint.h>
 
-#ifndef SC_SECONDREGION_CUH
-#define SC_SECONDREGION_CUH
+#ifndef S4_SECONDREGION_CUH
+#define S4_SECONDREGION_CUH
 
 /**
  * @brief Step 4, Massages the second PT region to attacker controlled region.
@@ -18,6 +18,6 @@
 bool second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, double threshold,
                        uint64_t skip, GPUBreachContext &ctx);
 
-bool second_PT_region (int argc, char *argv[]);
+GPUBreachContext second_PT_region (int argc, char *argv[]);
 
-#endif /* SC_SECONDREGION_CUH */
+#endif /* S4_SECONDREGION_CUH */

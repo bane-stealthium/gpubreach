@@ -2,8 +2,8 @@
 #include <gpubreach_util.cuh>
 #include <stdint.h>
 
-#ifndef SC_FIRSTREGION_CUH
-#define SC_FIRSTREGION_CUH
+#ifndef S2_FIRSTREGION_CUH
+#define S2_FIRSTREGION_CUH
 
 /**
  * @brief Test the PT region timing side-channel for section 5 step 2.
@@ -36,4 +36,4 @@ bool first_PT_region (uint64_t num_alloc_init, double threshold, uint64_t skip, 
  */
 bool first_PT_region (int argc, char *argv[]);
 
-#endif /* SC_FIRSTREGION_CUH */
+#endif /* S2_FIRSTREGION_CUH */

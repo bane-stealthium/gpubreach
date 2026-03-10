@@ -1,6 +1,5 @@
-#include "./sc_allocallmem.cuh"
-#include "./sc_firstRegion.cuh"
-#include "./sc_firstRegion_hammer.cuh"
+#include "./s2_firstRegion.cuh"
+#include "./s3_firstRegion_hammer.cuh"
 #include <chrono>
 #include <cmath>
 #include <fstream>

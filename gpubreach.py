@@ -103,6 +103,9 @@ def arg3_tasks(args):
 def arg4_tasks(args):
     run_command(f"BREACH_DEBUG={1 if args.verbose else 0} ./src/out/gpubreach_main {args.command} {args.n_step1} {args.n_step3} {args.threshold} {args.skip}")
 
+def arg4_tasks_app(args):
+    run_command(f"BREACH_DEBUG={1 if args.verbose else 0} ./src/out/{args.command} {args.n_step1} {args.n_step3} {args.threshold} {args.skip}")
+
 def main():
     parser = argparse.ArgumentParser(
         description="GPUBreach CLI tool"
@@ -131,6 +134,13 @@ def main():
     ]
     for name, help in task_tuple:
         arg_4_setup(subparsers, name, help, arg4_tasks)
+
+    task_tuple = [
+        ("app_cli", "Command line interface for navigating and editing the GPU Physical Memory"),
+        ("app_transfer", "Command line interface for transferring arbitrary RW primitive to another process through IPC"),
+    ]
+    for name, help in task_tuple:
+        arg_4_setup(subparsers, name, help, arg4_tasks_app)
     
     
     args = parser.parse_args()

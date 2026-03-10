@@ -2,8 +2,8 @@
 #include <stdint.h>
 #include <vector>
 
-#ifndef SC_ALLOCALLMEM_CUH
-#define SC_ALLOCALLMEM_CUH
+#ifndef S1_ALLOCALLMEM_CUH
+#define S1_ALLOCALLMEM_CUH
 
 /**
  * @brief Test side-channel of Section 4.4, allocates until the first memory
@@ -34,4 +34,4 @@ bool alloc_all_mem (uint64_t num_alloc, double threshold, uint64_t skip, GPUBrea
  */
 bool alloc_all_mem (int argc, char *argv[]);
 
-#endif /* SC_ALLOCALLMEM_CUH */
+#endif /* S1_ALLOCALLMEM_CUH */

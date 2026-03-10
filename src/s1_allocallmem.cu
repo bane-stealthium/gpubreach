@@ -1,4 +1,4 @@
-#include "./sc_allocallmem.cuh"
+#include "./s1_allocallmem.cuh"
 #include <chrono>
 #include <cmath>
 #include <cuda.h>

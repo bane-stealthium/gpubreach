@@ -35,7 +35,7 @@ struct GPUBreachContext {
 
     struct S4_ExploitComplete{
         uint8_t *corrupted_ptr;
-        std::vector<void*> cudaMalloced_ptrs;
+        std::vector<uint8_t *> cudaMalloced_ptrs;
     };
     S4_ExploitComplete step4_data;
 };

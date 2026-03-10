@@ -35,41 +35,45 @@ void cudaMemcpyArray(T* dst, const T* src, size_t numElements, cudaMemcpyKind ki
     }
 }
 
-struct CudaSharedMemHandles {
-    size_t pt_ofs;
-
-    cudaIpcMemHandle_t pt_handle;
-    cudaIpcMemHandle_t arb_handle;
-}__attribute__((__packed__));
-
 int main() {
-
-    CudaSharedMemHandles data;
     void* copy_ptr;
     cudaMallocManaged(&copy_ptr, 8);
 
-    std::ifstream file("./src/out/cuda_ipc_handles.bin", std::ios::binary);
-    file.read(reinterpret_cast<char*>(&data), sizeof(data));
-    file.close();
 
     void* pt_rw_ptr;
     void* arb_rw_ptr;
 
-    cudaIpcOpenMemHandle(&pt_rw_ptr, data.pt_handle,
+    cudaIpcMemHandle_t handle_pt;
+    cudaIpcMemHandle_t handle_arb;
+    std::ifstream file_pt("./cuda_ipc_pt.bin", std::ios::binary);
+    file_pt.read(reinterpret_cast<char*>(&handle_pt), sizeof(handle_pt));
+    file_pt.close();
+    std::ifstream file_arb("./cuda_ipc_arb.bin", std::ios::binary);
+    file_arb.read(reinterpret_cast<char*>(&handle_arb), sizeof(handle_arb));
+    file_arb.close();
+    cudaIpcOpenMemHandle(&pt_rw_ptr, handle_pt,
                          cudaIpcMemLazyEnablePeerAccess);
 
-    cudaIpcOpenMemHandle(&arb_rw_ptr, data.arb_handle,
+    cudaIpcOpenMemHandle(&arb_rw_ptr, handle_arb,
                          cudaIpcMemLazyEnablePeerAccess);
+    
+    std::cout << pt_rw_ptr  << ' ' << arb_rw_ptr << '\n';
 
     std::cout << "Opened both CUDA IPC memory regions\n";
 
+    cudaMemcpyArray((uint8_t*)copy_ptr, (uint8_t*)pt_rw_ptr, 8);
+    std::cout << pt_rw_ptr << *(void**)copy_ptr << '\n';
+    cudaMemcpyArray((uint8_t*)copy_ptr, (uint8_t*)(arb_rw_ptr), 8);
+    std::cout << arb_rw_ptr << *(void**)copy_ptr << '\n';
+
     // Example usage
     pause();
-    std::ifstream newfile("./src/out/new_offset.bin", std::ios::binary);
-    newfile.read(reinterpret_cast<char*>(&data), sizeof(data));
+    uint64_t ofs;
+    std::ifstream newfile("./new_offset.bin", std::ios::binary);
+    newfile.read(reinterpret_cast<char*>(&ofs), sizeof(ofs));
     newfile.close();
 
-    cudaMemcpyArray((uint8_t*)copy_ptr, (uint8_t*)pt_rw_ptr + data.pt_ofs, 8);
+    cudaMemcpyArray((uint8_t*)copy_ptr, (uint8_t*)pt_rw_ptr + ofs, 8);
     std::cout << pt_rw_ptr << *(void**)copy_ptr << '\n';
     cudaMemcpyArray((uint8_t*)copy_ptr, (uint8_t*)(arb_rw_ptr), 8);
     std::cout << arb_rw_ptr << *(void**)copy_ptr << '\n';

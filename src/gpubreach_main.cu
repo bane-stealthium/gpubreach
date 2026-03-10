@@ -1,7 +1,7 @@
-#include "./sc_allocallmem.cuh"
-#include "./sc_firstRegion.cuh"
-#include "./sc_firstRegion_hammer.cuh"
-#include "./sc_secondRegion.cuh"
+#include "./s1_allocallmem.cuh"
+#include "./s2_firstRegion.cuh"
+#include "./s3_firstRegion_hammer.cuh"
+#include "./s4_secondRegion.cuh"
 #include <iostream>
 
 /**

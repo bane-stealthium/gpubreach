@@ -156,7 +156,8 @@ void
 pause ()
 {
     std::cin.clear();
-    while (std::cin.get() != '\n');
+    int c;
+    while ((c = std::cin.get()) != '\n' && c != EOF);
 }
 
 

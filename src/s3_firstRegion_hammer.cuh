@@ -2,8 +2,8 @@
 #include <gpubreach_util.cuh>
 #include <stdint.h>
 
-#ifndef SC_FIRSTREGION_ATTACK_CUH
-#define SC_FIRSTREGION_ATTACK_CUH
+#ifndef S3_FIRSTREGION_ATTACK_CUH
+#define S3_FIRSTREGION_ATTACK_CUH
 
 /**
  * @brief Test memory limit after Step 2 Massaging.
@@ -40,4 +40,4 @@ bool first_PT_region_attack (
  */
 bool first_PT_region_attack (int argc, char *argv[]);
 
-#endif /* SC_FIRSTREGION_ATTACK_CUH */
+#endif /* S3_FIRSTREGION_ATTACK_CUH */

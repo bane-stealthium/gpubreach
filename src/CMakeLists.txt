@@ -12,7 +12,7 @@ include_directories(include)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
-add_library(gpubreach_lib ./sc_allocallmem.cu ./sc_firstRegion.cu ./sc_firstRegion_hammer.cu ./sc_secondRegion.cu ./include/gpubreach_util.cu)
+add_library(gpubreach_lib ./s1_allocallmem.cu ./s2_firstRegion.cu ./s3_firstRegion_hammer.cu ./s4_secondRegion.cu ./include/gpubreach_util.cu)
 
 add_library(hammer_lib ./include/rh_kernels.cu ./include/rh_utils.cu ./include/rh_impls.cu)
 target_link_libraries(hammer_lib PUBLIC Threads::Threads)
@@ -20,3 +20,11 @@ target_link_libraries(hammer_lib PUBLIC Threads::Threads)
 add_executable(gpubreach_main ./gpubreach_main.cu)
 target_link_libraries(gpubreach_main PUBLIC gpubreach_lib)
 target_link_libraries(gpubreach_main PUBLIC hammer_lib)
+
+add_executable(app_cli ./app_cli.cu)
+target_link_libraries(app_cli PUBLIC gpubreach_lib)
+target_link_libraries(app_cli PUBLIC hammer_lib)
+
+add_executable(app_transfer ./app_transfer.cu)
+target_link_libraries(app_transfer PUBLIC gpubreach_lib)
+target_link_libraries(app_transfer PUBLIC hammer_lib)
