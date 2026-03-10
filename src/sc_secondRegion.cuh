@@ -16,7 +16,7 @@
  * @return false, Something is wrong. True otherwise.
  */
 bool second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, double threshold,
-                       uint64_t skip);
+                       uint64_t skip, GPUBreachContext &ctx);
 
 bool second_PT_region (int argc, char *argv[]);
 

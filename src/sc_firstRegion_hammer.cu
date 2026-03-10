@@ -220,7 +220,6 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
         }
       else
         std::cout << "No Corruption Found, Retrying..." << "\n\n";
-      pause();
     }
 
 

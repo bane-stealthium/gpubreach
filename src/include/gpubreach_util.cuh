@@ -32,6 +32,12 @@ struct GPUBreachContext {
         uint64_t victim_id;
     };
     S3_CorruptPTE step3_data;
+
+    struct S4_ExploitComplete{
+        uint8_t *corrupted_ptr;
+        std::vector<void*> cudaMalloced_ptrs;
+    };
+    S4_ExploitComplete step4_data;
 };
 
 inline bool debug_enabled() {
