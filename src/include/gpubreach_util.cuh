@@ -56,11 +56,6 @@ inline bool debug_enabled() {
 #define DBG_OUT \
     if (!debug_enabled()) {} else std::cout
 
-/* Memory size where the GPUHammer RowSet was performed on, 
-   required for GPUHammer to perform correctly.
-   Should be slightly less than max size, e.g. 46 for 48GB VRAM or 15 for 16GB VRAM
-*/
-const size_t RH_LIMIT = 46L * 1024 * 1024 * 1024; 
 const size_t ALLOC_SIZE = 2 * 1024 * 1024;
 
 __global__ void initialize_memory(uint8_t *array, uint64_t size);

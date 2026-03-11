@@ -41,6 +41,8 @@ Our reference system:
 
 ├── 📄 CMakeList.txt
 ├── 📄 gpubreach_main.cu: main function to run different steps of GPUBreach.
+├── 📄 app_cli.cu: sample command line interface to try out arbitrary RW on GPU Memory.
+├── 📄 app_transfer.cu: sample program to transfer arbitrary RW primitive to another processs.
 ├── 📄 s1_allocallmem.*: Step 1 of GPUBreach, using UVM timing side-channel to get system memory limit.
 |
 ├── 📄 s2_firstRegion.*: Step 2 of GPUBreach, using UVM timing side-channel and 4KB page tables to massage PT regions to flippy locations.
@@ -50,7 +52,9 @@ Our reference system:
 └── 📄 s4_secondRegion.*: Step 4 of GPUBreach, same as sc_firstRegion.
 ```
 
-## Basic Steps to Run & Perform GPUBreach Steps
+## Steps for Artifact Evaluation
+
+## Detailed Steps to Run & Perform GPUBreach Steps
 
 ### Step 0. Compile
 ```bash

@@ -34,6 +34,7 @@ alloc_all_mem_test (int argc, char *argv[])
   // Prefetch RH_Limit amount of memory as we will do in actual attack.
   // Required step for GPUHammer to work.
   int device;
+  const uint64_t RH_LIMIT = total_byte - (2L * 1024 * 1024 * 1024);
   cudaGetDevice (&device);
   cudaMallocManaged (&temp, total_byte);
   cudaMemPrefetchAsync (temp, RH_LIMIT, device);
@@ -88,6 +89,17 @@ bool
 alloc_all_mem (uint64_t num_alloc, double threshold, uint64_t skip, GPUBreachContext &ctx)
 {
   uint8_t *temp;
+
+  size_t total_byte;
+  auto cuda_status = cudaMemGetInfo (nullptr, &total_byte);
+  if (cudaSuccess != cuda_status)
+    {
+      printf ("Error: cudaMemGetInfo fails, %s \n",
+              cudaGetErrorString (cuda_status));
+      exit (1);
+    }
+  const uint64_t RH_LIMIT = total_byte - (2L * 1024 * 1024 * 1024);
+
   int device;
   cudaGetDevice (&device);
   cudaMallocManaged (&temp, num_alloc * ALLOC_SIZE);
