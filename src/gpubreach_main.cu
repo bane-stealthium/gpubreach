@@ -3,6 +3,7 @@
 #include "./s3_firstRegion_hammer.cuh"
 #include "./s4_secondRegion.cuh"
 #include <iostream>
+#include <chrono>
 
 /**
  * TODO: May not be useful if the switch statements do not do anything
@@ -81,8 +82,14 @@ main (int argc, char *argv[])
       first_PT_region_attack (argc, argv);
       break;
     case Task::SECOND_REGION:
+    {
+      auto start = std::chrono::high_resolution_clock::now();
       second_PT_region (argc, argv);
+      auto end = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> elapsed = end - start;
+      std::cout << "Elapsed time: " << elapsed.count() << " seconds\n";
       break;
+    }
     case INVALID:
       std::cout << "Unkown Task.\n";
     }

@@ -19,14 +19,9 @@ second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg,
   auto& region_ptrs = ctx.step3_data.region_ptrs;
   auto& agg_ptrs = ctx.step3_data.agg_ptrs;
   auto& corrupted_ptr = ctx.step3_data.corrupted_ptr;
-  auto& victim_ptr = ctx.step3_data.victim_ptr;
   auto& corrupted_id = ctx.step3_data.corrupted_id;
   auto& victim_id = ctx.step3_data.victim_id;
   ctx.step4_data.corrupted_ptr = corrupted_ptr;
-
-  std::cout << corrupted_id << " " << victim_id << '\n';
-  std::cout << "Ready to Start Second PTC Test " << '\n';
-  pause ();
 
   uint64_t ERR_next_id = std::numeric_limits<uint64_t>::max ();
   uint64_t next_id = ERR_next_id;
@@ -53,9 +48,6 @@ second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg,
         next_id = i + 508;
     }
 
-  for (auto ptr : agg_ptrs)
-    cudaFree(ptr);
-
   std::vector<uint8_t*> fourkb_pages;
   for (uint64_t i = 0; i < (((uint64_t)corrupted_ptr % (2L * 1024 * 1024)) / 4096) + 1; i += 1)
     {
@@ -63,7 +55,6 @@ second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg,
 
       double currentMS = time_data_access (temp + ALLOC_SIZE, 1);
       fourkb_pages.push_back(temp);
-      std::cout << i << " New PT time: " << currentMS << " ms" << std::endl;
     }
   for (uint64_t i = 0; i < num_alloc_post_msg; i += 1)
   {
@@ -86,6 +77,8 @@ second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg,
     }
   cudaDeviceSynchronize();
   for (auto& ptr : fourkb_pages)
+    cudaFree(ptr);
+  for (auto ptr : agg_ptrs)
     cudaFree(ptr);
 
   print_memory<<<1,1>>>(corrupted_ptr, 64 * 1024);

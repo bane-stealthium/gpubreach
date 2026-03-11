@@ -81,6 +81,8 @@ void gen_64KB(char *array, uint64_t size);
 
 __global__ void simple_flush(char *array, uint64_t size);
 
+__global__ void check_region_inner(uint8_t* base, uint64_t ALLOC_SIZE);
+
 std::map<uint64_t, std::vector<uint64_t>> get_relative_aggressor_offset(RowList &rows, std::vector<uint64_t> aggressors, uint8_t* layout);
 
 std::pair<RowList, std::vector<uint64_t>> get_aggressor_rows_from_offset(std::vector<uint8_t *> pointers, std::map<uint64_t, std::vector<uint64_t>> offsets);

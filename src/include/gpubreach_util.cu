@@ -4,7 +4,7 @@
 
 __global__ void initialize_memory(uint8_t *array, uint64_t size)
 {
-    int id = (blockIdx.x *blockDim.x + threadIdx.x) * 4096;
+    int id = (blockIdx.x *blockDim.x + threadIdx.x) * 65536;
     if (id < size)
         *(uint8_t**)(array + id) = array + id;
 }
@@ -40,7 +40,7 @@ __global__ void print_memory(uint8_t *array, uint64_t size)
 double
 time_data_access (uint8_t *array, uint64_t size)
 {
-    uint64_t threads = std::ceil(size / 4096.0);
+    uint64_t threads = std::ceil(size / 65536.0);
     auto start = std::chrono::high_resolution_clock::now();
     initialize_memory<<<1, threads>>>(array, size);
     cudaDeviceSynchronize();
@@ -54,7 +54,7 @@ time_data_access (uint8_t *array, uint64_t size)
 void
 evict_from_device (uint8_t *array, uint64_t size)
 {
-    for (int j = 0; j < size; j += 64 * 1024)
+    for (int j = 0; j < size; j += 65536)
         *(array + j) = 'a';
 }
 
@@ -171,5 +171,37 @@ __global__ void simple_flush(char *array, uint64_t size){
     {
         if (( i % (2 * 1024 * 1024) ) != 0)
             *(char**)(array + i) = (array + i);
+    }
+}
+
+__global__ void check_region_inner(uint8_t* base, uint64_t ALLOC_SIZE)
+{
+    const uint64_t stride = 64 * 1024;
+    uint64_t j = ((uint64_t)blockIdx.x * blockDim.x + threadIdx.x + 1) * stride; // +1: j starts at 1*stride
+
+    if (j >= ALLOC_SIZE) return;
+
+    uint64_t temp_addr = *reinterpret_cast<uint64_t*>(base + j);
+
+    if (reinterpret_cast<uint64_t>(base + j) != temp_addr)
+    {
+        // Race to store lowest j as the winner
+        uint64_t prev = atomicMin(
+            reinterpret_cast<unsigned long long*>(base + 64 * 1024 + 16),
+            static_cast<unsigned long long>(j)
+        );
+
+        atomicExch(
+            reinterpret_cast<unsigned long long*>(base + 64 * 1024 + 8),
+            1ULL
+        );
+
+        if (prev > j)
+        {
+            atomicExch(
+                reinterpret_cast<unsigned long long*>(base + 64 * 1024 + 24),
+                static_cast<unsigned long long>(temp_addr)
+            );
+        }
     }
 }
