@@ -1,5 +1,11 @@
-# GPUBreach
+# GPUBreach (47th IEEE Symposium on Security and Privacy)
 
+## Introduction
+
+This is the code artifact for the paper 
+**"GPUBreach: Privilege Escalation Attacks on GPUs using Rowhammer"**, presented at [Security and Privacy 2026]([https://www.usenix.org/conference/usenixsecurity25](https://sp2026.ieee-security.org/))
+
+Authors from University of Toronto: Chris S. Lin, Yuqin Yan, Joyce Qu, Joseph Zhu, Guozhen Ding, David Lie, Gururaj Saileshwar, .
 ## Required Environment
 **Run-time Environment:**  We suggest using a Linux distribution compatible with g++-11 or newer.
 
@@ -19,13 +25,9 @@ Our reference system:
 - OS: Ubuntu 22.04.5 LTS
 - CPU: AMD Ryzen Threadripper PRO 5945WX 12-Cores
 - GPU: NVIDIA RTX A6000 (48 GB GDDR6, sm_80)
-- Driver: NVIDIA Driver 545.23.08 (includes nvidia-smi)
+- Driver: NVIDIA Driver 580.95.05 (includes nvidia-smi)
 - CUDA Toolkit: 12.3
 - Compiler: g++ 11.4.90 with C++17 support
-
-### Setup Step for Current Project (Due to some hardcodings...)
-1. Change `const size_t RH_LIMIT` in `src/include/sc_util.cuh` following the comment on the variable.
-2. Change `auto last_hammer_page` in `src/sc_firstRegion.cu` following the comment on the variable.
 
 ## Project Structure
 
@@ -35,17 +37,17 @@ Our reference system:
 │
 ├── 📂 /include: contains the core code to launch GPUHammer and utils for GPUBreach massaging
 │   └── 📄 rh_*: Directly ported from GPUHammer to launch Rowhammer with minimal amount of code.
-│   └── 📄 sc_util.cu/h: CUDA Kernels and utility C++ functions for massaging.
+│   └── 📄 gpubreach_util.cu/h: CUDA Kernels and utility C++ functions for massaging.
 
 ├── 📄 CMakeList.txt
-├── 📄 sc_main.cu: main function to run different steps of GPUBreach.
-├── 📄 sc_allocallmem.*: Step 1 of GPUBreach, using UVM timing side-channel to get system memory limit.
+├── 📄 gpubreach_main.cu: main function to run different steps of GPUBreach.
+├── 📄 s1_allocallmem.*: Step 1 of GPUBreach, using UVM timing side-channel to get system memory limit.
 |
-├── 📄 sc_firstRegion.*: Step 2 of GPUBreach, using UVM timing side-channel and 4KB page tables to massage PT regions to flippy locations.
+├── 📄 s2_firstRegion.*: Step 2 of GPUBreach, using UVM timing side-channel and 4KB page tables to massage PT regions to flippy locations.
 |
-├── 📄 sc_firstRegion_hammer.*: Step 3 of GPUBreach, fill new PT region with PTEs and perform GPUHammer. Repeated multiple times on random PTEs if corruption not observed.
+├── 📄 s3_firstRegion_hammer.*: Step 3 of GPUBreach, fill new PT region with PTEs and perform GPUHammer. Repeated multiple times on random PTEs if corruption not observed.
 |
-└── 📄 sc_secondRegion.*: Step 4 of GPUBreach, same as sc_firstRegion.
+└── 📄 s4_secondRegion.*: Step 4 of GPUBreach, same as sc_firstRegion.
 ```
 
 ## Basic Steps to Run & Perform GPUBreach Steps
