@@ -12,7 +12,7 @@ Authors from University of Toronto: Chris S. Lin, Yuqin Yan, Joyce Qu, Joseph Zh
 - Software Dependencies:
    - CMake 3.22+
    - g++ with C++17 Support
-   - NVIDIA CUDA Driver
+   - NVIDIA CUDA Driver: (545.23.08 - 580.95.05 Tested)
    - NVIDIA CUDA Toolkit
    - NVIDIA System Management Interface `nvidia-smi`
 
@@ -28,6 +28,38 @@ Our reference system:
 - Driver: NVIDIA Driver 580.95.05 (includes nvidia-smi)
 - CUDA Toolkit: 12.3
 - Compiler: g++ 11.4.90 with C++17 support
+
+## Steps for Artifact Evaluation
+
+### 1. Clone the Repository (Ignore for Zenodo users)
+
+Ensure you have already cloned the repository:
+```bash
+git clone https://github.com/sith-lab/gpubreach.git
+cd gpubreach
+```
+
+### 2. GPU Setup
+
+For the Rowhammer attack, a prerequiste is having **ECC disabled**. This is already the default setting on many A6000 GPUs. But if it is enabled, use the following commands to disable it:
+```bash
+sudo nvidia-smi -e 0
+rmmod nvidia_drm 
+rmmod nvidia_modeset
+sudo reboot
+```
+
+Our profiling is easier with the persistence mode enabled, and with fixed GPU and memory clock rates, although these are not pre-requisites. The following script performs the above actions:
+```bash
+# Example usage: 
+#  bash ./gpuhammer/util/init_cuda.sh <MAX_GPU_CLOCK> <MAX_MEMORY_CLOCK>
+bash ./gpuhammer/util/init_cuda.sh 1800 7600
+```
+**MAX_GPU_CLOCK** and **MAX_MEMORY_CLOCK** can be found with `deviceQuery` from CUDA samples. We provide this for A6000 in 'gpuhammer/src/deviceQuery.txt'. 
+
+These changes can be undone with `bash ./gpuhammer/util/reset_cuda.sh`.
+
+## Detailed Steps to Run & Perform GPUBreach Steps
 
 ## Project Structure
 
@@ -51,10 +83,6 @@ Our reference system:
 |
 └── 📄 s4_secondRegion.*: Step 4 of GPUBreach, same as sc_firstRegion.
 ```
-
-## Steps for Artifact Evaluation
-
-## Detailed Steps to Run & Perform GPUBreach Steps
 
 ### Step 0. Compile
 ```bash
