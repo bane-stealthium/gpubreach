@@ -1,8 +1,9 @@
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+import sys
 
 # Path to your data file
-filename = "4kb_timing.txt"
+filename = sys.argv[1]
 plt.rcParams['pdf.fonttype'] = 42
 plt.rcParams['ps.fonttype'] = 42
 
@@ -52,5 +53,5 @@ legend_elements = [
 plt.tight_layout()
 
 
-plt.savefig("tecniques_4kb_latency.pdf", dpi=500, bbox_inches='tight')
+plt.savefig(sys.argv[2], dpi=500, bbox_inches='tight')
 plt.close()
