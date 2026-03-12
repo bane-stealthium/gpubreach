@@ -65,6 +65,7 @@ first_PT_region_attack_test (int argc, char *argv[])
                     << i - consec_spike_lim + 1
                     << "\033[0m as the limit in subsequent experiments."
                     << std::endl;
+          break;
         }
     }
 }
