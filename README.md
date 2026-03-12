@@ -61,7 +61,7 @@ These changes can be undone with `bash ./gpubreach/gpuhammer/util/reset_cuda.sh`
 
 ### 2. NVIDIA Driver Setup
 
-
+1. GPU-TLB 2. GPU-CPU Modifications
 
 ### 3. Download ImageNet Validation Dataset
 
@@ -254,7 +254,7 @@ This step does the same thing as **Step 2** and completes the exploit.
 python3 gpubreach.py second_region --n_step1 24109 --n_step3 24070 -t 0.2 -s 15 -v
 ```
 
-It will print out a bunch of PTEs of 2MB cudaMalloced memories, which isn't available for normal users, showing that we have access to modify them. It also outputs the elapsed time, but given the output text and also that the driver we provide is modified in order to provide helpful information in reviewing and executing the exploits, take it as a grain of salt.
+It will print out a bunch of PTEs of 2MB cudaMalloced memories, which isn't available for normal users, showing that we have access to modify them. It also outputs the elapsed time, but given the verbose output and also that, the driver we provide is modified in order to provide helpful information in reviewing and executing the exploits, take the elapsed time as a grain of salt.
 
 ```txt
 4f90: 1 0 e6 5 0 0 0 6 
@@ -268,3 +268,5 @@ Elapsed time: 31.7281 seconds
 ```
 
 ## Section 6 Exploits w/ GPUBreach
+
+

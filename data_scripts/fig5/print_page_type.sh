@@ -1,0 +1,1 @@
+grep "VA: $1" dump.txt | sed -E 's/.*-->([0-9A-Za-z]+)-Page.*/\1/' > page_type.txt
