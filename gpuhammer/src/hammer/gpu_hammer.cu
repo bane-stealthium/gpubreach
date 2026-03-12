@@ -111,8 +111,8 @@ int main(int argc, char *argv[])
 
       // Comment out the first line and uncomment the following line to check 
       // for bit-flips in the nearby neighborhood to reduce hammering time.
-      bool res = verify_all_content(rows, all_vics, aggressors, step, vic_pat);
-      // bool res = verify_all_content(rows, pat_vics, aggressors, step, vic_pat);
+      // bool res = verify_all_content(rows, all_vics, aggressors, step, vic_pat);
+      bool res = verify_all_content(rows, pat_vics, aggressors, step, vic_pat);
       
       std::cout << CLI_PREFIX << "Bit-flip in victim rows: " 
                               << (res ? "Observed Bit-Flip" : "No Bit-Flip") << std::endl;

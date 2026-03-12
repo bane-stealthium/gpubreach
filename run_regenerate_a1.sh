@@ -1,3 +1,5 @@
+#!/bin/sh
+
 # Variables
 num_agg=24
 num_warp=8
@@ -24,6 +26,19 @@ flip_names=(A1)
 pats=(55 aa)
 
 dirname=$HAMMER_ROOT/results/sample_bitflips
+
+check_bitflip() {
+    local file="$1"
+
+    if [[ ! -f "$file" ]]; then
+        echo "Error: File '$file' not found"
+        return 2
+    fi
+
+    grep -qP "Bit-flip detected!" "$file" \
+    && grep -qP "Row 30016, Byte 114," "$file" \
+    && grep -qP "Data Pattern: 0x55 -> 0x45" "$file"
+}
 
 for i in {0..0}; do
     
@@ -61,6 +76,14 @@ for i in {0..0}; do
         $HAMMER_ROOT/src/out/build/gpu_hammer $rowset_file $((num_agg - 1)) $addr_step $iterations $min_rowid $max_rowid $row_step $skip_step $mem_size $num_warp $num_thread $delay $round $count_iter $num_rows $vic_pat $agg_pat $bitflip_file > $log_file
 
         sleep 3
+
+        if check_bitflip $log_file; then
+            echo "MATCH: Expected bit-flip A1 pattern found in $log_file"
+            exit 0
+        else
+            echo "NO MATCH: Pattern not found in $log_file"
+            exit 1
+        fi
 
     done
 

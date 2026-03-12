@@ -95,8 +95,10 @@ This command will run the following steps:
   bash run_fig8.sh
   bash run_fig10.sh 
   ```
-**NOTE:** We additionally provide sample outputs of all experiments in the folder `./results/sample`.
 
+and the results will be stored in `results/fig*`.
+
+**NOTE:** We additionally provide sample outputs of all experiments in the folder `./results/sample`.
 
 ## Detailed Steps to Run & Perform GPUBreach Steps
 
