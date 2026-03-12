@@ -5,7 +5,7 @@
 This is the code artifact for the paper 
 **"GPUBreach: Privilege Escalation Attacks on GPUs using Rowhammer"**, presented at [Security and Privacy 2026]([https://www.usenix.org/conference/usenixsecurity25](https://sp2026.ieee-security.org/))
 
-Authors from University of Toronto: Chris S. Lin, Yuqin Yan, Joyce Qu, Joseph Zhu, Guozhen Ding, David Lie, Gururaj Saileshwar, .
+Authors from University of Toronto: Chris S. Lin, Yuqin Yan, Joyce Qu, Joseph Zhu, Guozhen Ding, David Lie, Gururaj Saileshwar.
 ## Required Environment
 **Run-time Environment:**  We suggest using a Linux distribution compatible with g++-11 or newer.
 
@@ -53,11 +53,46 @@ Our profiling is easier with the persistence mode enabled, and with fixed GPU an
 ```bash
 # Example usage: 
 #  bash ./gpuhammer/util/init_cuda.sh <MAX_GPU_CLOCK> <MAX_MEMORY_CLOCK>
-bash ./gpuhammer/util/init_cuda.sh 1800 7600
+bash ./gpubreach/gpuhammer/util/init_cuda.sh 1800 7600
 ```
 **MAX_GPU_CLOCK** and **MAX_MEMORY_CLOCK** can be found with `deviceQuery` from CUDA samples. We provide this for A6000 in 'gpuhammer/src/deviceQuery.txt'. 
 
-These changes can be undone with `bash ./gpuhammer/util/reset_cuda.sh`.
+These changes can be undone with `bash ./gpubreach/gpuhammer/util/reset_cuda.sh`.
+
+### 3. Download ImageNet Validation Dataset
+
+Our artifact requires the ImageNet 2012 Validation Dataset, which is available from the official ImageNet website. Please note that downloading requires a (free) ImageNet account — please register at https://www.image-net.org/download-images.php before proceeding.
+
+We require the "Validation images (all tasks)" under Images when inside the ImageNet 2012 DataSet webpage. Please obtain the download link and download it **to the repository root** as follows:
+
+```bash
+# Make sure you are downloading the file into the repository root directory
+cd gpubreach
+wget <download link>
+```
+
+The downloaded file's name should be `ILSVRC2012_img_val.tar`.
+
+### 4. Run the Artifact
+Run the following commands to install dependencies, build GPUBreach and the exploits. However, `./run_auto_artifacts.sh` will only run those that can be done _non-interactively_. The exploits in Section 6 requires GPUBreach, which is an interactive interface for the next section: **Detailed Steps to Run & Perform GPUBreach Steps**.
+
+```bash
+cd gpubreach
+bash ./run_auto_artifacts.sh
+```
+
+This command will run the following steps:
+
+* Run GPUBreach Experiments for PT Region Massaging:
+
+  ```bash
+  bash run_fig5.sh
+  bash run_fig7.sh
+  bash run_fig8.sh
+  bash run_fig10.sh 
+  ```
+**NOTE:** We additionally provide sample outputs of all experiments in the folder `./results/sample`.
+
 
 ## Detailed Steps to Run & Perform GPUBreach Steps
 

@@ -89,14 +89,14 @@ hardcoded_rowhammer_bitflip_page (GPUBreachContext &ctx)
 
   const uint64_t num_victim = 23;
   const uint64_t step = 256;
-  const uint64_t min_rowId = 30329 - 94;
-  const uint64_t max_rowId = 30329 + 5;
+  const uint64_t min_rowId = 30016 - 94;
+  const uint64_t max_rowId = 30016 + 5;
   const uint64_t row_step = 4;
   const uint64_t num_rows = 31400;
   const uint64_t agg_pat = std::stoull ("0xAA", nullptr, 16);
 
   std::ifstream row_set_file ("/home/rootuser/gpuhammer-reloaded/gpuhammer/"
-                              "results/row_sets/ROW_SET_A.txt");
+                              "results/row_sets/ROW_SET_C.txt");
   RowList rows = read_row_from_file (row_set_file, layout);
   row_set_file.close ();
 

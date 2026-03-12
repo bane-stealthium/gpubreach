@@ -137,7 +137,8 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
 
           region_ptrs[i] = temp;
 
-          if (repeats != 0 && i < 8000)
+          // if (repeats != 0 && i < 8000)
+          if (i < 8000)
             *region_ptrs[i] = 'a';
         }
 
