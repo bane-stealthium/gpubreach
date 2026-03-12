@@ -1,8 +1,11 @@
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
+import sys
 
 # Input files
-files = ["ev_ptp_2MB.txt", "ev_ptp_4MB.txt"]
+# files = ["ev_ptp_2MB.txt", "ev_ptp_4MB.txt"]
+# labels = ["Leave 2MB Free", "Leave 4MB Free"]
+files = [sys.argv[1], sys.argv[2]]
 labels = ["Leave 2MB Free", "Leave 4MB Free"]
 plt.rcParams['pdf.fonttype'] = 42
 plt.rcParams['ps.fonttype'] = 42
@@ -36,5 +39,5 @@ plt.xlim(10, None)
 plt.tight_layout()
 
 # Save as high-resolution PDF
-plt.savefig("ptp_latency_comparison.pdf", dpi=500, bbox_inches='tight')
+plt.savefig(sys.argv[-1], dpi=500, bbox_inches='tight')
 plt.close()
