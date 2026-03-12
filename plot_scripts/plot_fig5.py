@@ -61,5 +61,5 @@ plt.plot( u+a*np.cos(t) , v+b*np.sin(t) , linewidth=2, color="red", linestyle='-
 # plt.tight_layout()
 
 # Save as high-resolution PDF
-plt.savefig("page_type_distribution.pdf", dpi=500, bbox_inches='tight')
+plt.savefig(sys.argv[2], dpi=500, bbox_inches='tight')
 plt.close()

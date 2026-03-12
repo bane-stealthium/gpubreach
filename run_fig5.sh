@@ -9,5 +9,5 @@ for i in {1..1024}; do
 done
 
 cd ../..
-mkdir results/fig5
-python3 plot_scripts/plot_fig5.py data_scripts/fig5/4kb_iter_page_types
+mkdir -p results/fig5
+python3 plot_scripts/plot_fig5.py data_scripts/fig5/4kb_iter_page_types results/fig5/fig5.pdf

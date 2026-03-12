@@ -1,8 +1,9 @@
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
+import sys
 
 # Input files
-files = ["time_eviction_full.txt"]
+files = [sys.argv[1]]
 plt.rcParams['pdf.fonttype'] = 42
 plt.rcParams['ps.fonttype'] = 42
 plt.figure(figsize=(6, 2))
@@ -22,19 +23,15 @@ for filename in files:
     plt.plot(indices, latencies, linewidth=1)
 
 
-plt.xticks([2000, 4000, 6000, 8000])
+plt.xticks([6000, 12000, 18000, 24000])
 plt.yticks([0.1, 0.3, 0.5])
 plt.ylabel('Latency (ms)', fontsize=14)
 plt.xlabel('Number of 2MB Allocations', fontsize=14)
 plt.grid(True, linestyle='--', alpha=0.6)
-# legend = plt.legend(fontsize=12,)
-# for line in legend.get_lines():
-#     line.set_linewidth(3)
 
-plt.gca().xaxis.set_major_formatter(FuncFormatter(lambda x, _: int(x * 3)))
 plt.xlim(10, None)
 plt.tight_layout()
 
 # Save as high-resolution PDF
-plt.savefig("ptp_latency_full.pdf", dpi=500, bbox_inches='tight')
+plt.savefig(sys.argv[2], dpi=500, bbox_inches='tight')
 plt.close()
