@@ -96,7 +96,7 @@ hardcoded_rowhammer_bitflip_page (GPUBreachContext &ctx)
   const uint64_t agg_pat = std::stoull ("0xAA", nullptr, 16);
 
   std::ifstream row_set_file ("/home/rootuser/gpuhammer-reloaded/gpuhammer/"
-                              "results/row_sets/ROW_SET_C.txt");
+                              "results/row_sets/ROW_SET_A.txt");
   RowList rows = read_row_from_file (row_set_file, layout);
   row_set_file.close ();
 
