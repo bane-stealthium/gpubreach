@@ -1,22 +1,25 @@
-#!/bin/sh
+echo "-------------------------------------------"
+echo ""
+echo "###########################################"
+echo "[INFO] 1. Build Executables and Install Dependencies"
+echo "###########################################"
+
+cd gpuhammer/src
+cmake -S . -B out/build
+cd out/build && make
+cd ../../../..
+
+cd src/
+cmake -S . -B out
+cd out && make
 
 echo "-------------------------------------------"
 echo ""
 echo "###########################################"
-echo "[INFO] Running Figure 7"
+echo "[INFO] 3. Running Artifacts"
 echo "###########################################"
 
-
-cd data_scripts/fig7
-nvcc ev_time.cu -o ev_time
-./ev_time > time_eviction_full.txt
-
-cd ../..
-mkdir -p results/fig7
-python3 plot_scripts/plot_fig7.py data_scripts/fig7/time_eviction_full.txt results/fig7/fig7.pdf
-
-echo "-------------------------------------------"
-echo ""
-echo "###########################################"
-echo "[INFO] Result stored in results/fig7/fig7.pdf."
-echo "###########################################"
+bash run_fig5.sh
+bash run_fig7.sh
+bash run_fig8.sh
+bash run_fig10.sh

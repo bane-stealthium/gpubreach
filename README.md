@@ -78,10 +78,11 @@ wget <download link>
 The downloaded file's name should be `ILSVRC2012_img_val.tar`.
 
 ### 4. Run the Artifact
-Run the following commands to install dependencies, build GPUBreach and the exploits. However, `./run_auto_artifacts.sh` will only run those that can be done _non-interactively_. The exploits in Section 6 requires GPUBreach, which is an interactive interface for the next section: **Detailed Steps to Run & Perform GPUBreach Steps**.
+Run the following commands to setup environment variables, install dependencies, build GPUBreach and the exploits. However, `./run_auto_artifacts.sh` will only run those that can be done _non-interactively_. The exploits in Section 6 requires GPUBreach, which is an interactive interface for the next section: **Detailed Steps to Run & Perform GPUBreach Steps**.
 
 ```bash
 cd gpubreach
+source ./init_env.sh
 bash ./run_auto_artifacts.sh
 ```
 
