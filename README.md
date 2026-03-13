@@ -12,9 +12,9 @@ Authors from University of Toronto: Chris S. Lin, Yuqin Yan, Joyce Qu, Joseph Zh
 In this artifact, we aim to reproduce the following:
 - Memory Massaging Primitives (Figure 5, 7, 8, and 10)
 - Arbitrary Read&Write with GPUBreach
-- End-to-End GPU-CPU Exploit
+- End-to-End GPU-CPU Exploit (Interactive)
 
-All artifacts are automatically generated **except** the `End-to-End GPU-CPU Exploit`, which requires an interactive process.
+All artifacts are automatically generated **except** the `End-to-End GPU-CPU Exploit`, which requires an interactive process in the __Exploit__ section
 
 ## Required Environment
 **Run-time Environment:**  We suggest using a Linux distribution compatible with g++-11 or newer.
@@ -91,7 +91,7 @@ patch -p1 < ./gpu-tlb/dumper/patch/driver-570.133.07.patch
 sudo ./nvidia-installer
 ```
 
-### 4. Run the Artifact
+## Run Automatable Artifacts
 Run the following commands to setup environment variables, install dependencies, build GPUBreach and the exploits. However, `./run_auto_artifacts.sh` will only run those that can be done _non-interactively_. The exploits in Section 6 requires GPUBreach, which is an interactive interface for the next section: **Detailed Steps to Run & Perform GPUBreach Steps**.
 
 ```bash
@@ -140,6 +140,5 @@ The artifact is reproduced correctly if `results/gpubreach_demo/memdump.txt` dum
 
 > The exploit chain have a very low chance of crashing the program.
 
-## Exploit
+## Exploit: GPU-CPU Exploit Section 6.4
 
-### Exploit: GPU-CPU Exploit Section 6.4
