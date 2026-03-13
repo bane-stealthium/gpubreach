@@ -44,6 +44,7 @@ main (int argc, char *argv[])
 
   removeFirstArg (argc, argv);
   GPUBreachContext ctx = second_PT_region (argc, argv);
+  std::cout << "GPU Privilege Escalation Finished, proceeding to setting up environment for dumping user memory..."<< '\n';
 
   auto &cudaMalloced_ptrs = ctx.step4_data.cudaMalloced_ptrs;
   auto &corrupted_ptr = ctx.step3_data.corrupted_ptr;

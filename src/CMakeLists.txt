@@ -26,10 +26,6 @@ add_executable(gpubreach_main ./gpubreach_main.cu)
 target_link_libraries(gpubreach_main PUBLIC gpubreach_lib)
 target_link_libraries(gpubreach_main PUBLIC hammer_lib)
 
-add_executable(app_cli ./app_cli.cu)
-target_link_libraries(app_cli PUBLIC gpubreach_lib)
-target_link_libraries(app_cli PUBLIC hammer_lib)
-
 add_executable(app_cpu_exploit ./app_cpu_exploit.cu)
 target_link_libraries(app_cpu_exploit PUBLIC gpubreach_lib)
 target_link_libraries(app_cpu_exploit PUBLIC hammer_lib)
