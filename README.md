@@ -41,7 +41,7 @@ Our reference system:
 - CPU: AMD Ryzen Threadripper PRO 5945WX 12-Cores
 - GPU: NVIDIA RTX A6000 (48 GB GDDR6, sm_80)
 - Driver: NVIDIA Driver 580.95.05 (includes nvidia-smi)
-- CUDA Toolkit: 12.3
+- CUDA Toolkit: 12.8
 - Compiler: g++ 10.5.0
 
 ## Steps for Artifact Evaluation
