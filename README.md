@@ -29,6 +29,7 @@ All the results are automatically generated **except** the *CPU Privilege Exploi
    - NVIDIA CUDA Driver: 580.95.05
    - NVIDIA CUDA Toolkit
    - NVIDIA System Management Interface `nvidia-smi`
+   - Python 3.10+
 
 - Hardware Dependencies:
    - NVIDIA GPU sm_80+
