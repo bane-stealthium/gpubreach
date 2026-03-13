@@ -43,14 +43,16 @@ time_data_access (char *array, uint64_t size)
 int main(int argc, char **argv)
 {
     char *temp;
-    int device;
+    // int device;
+    // cudaGetDevice (&device);
     cudaMallocManaged (&temp, 48L * 1024 * 1024 * 1024);
+    // cudaMemPrefetchAsync (temp, 46L * 1024 * 1024 * 1024, device);
     cudaDeviceSynchronize();
 
     uint64_t i = 0;
     while (i < 48L * 1024 * 1024 * 1024)
     {
-        double currentMS = time_data_access(temp, 1);
+        double currentMS = time_data_access(temp, 2L * 1024 * 1024);
 
         std::cout << i / ALLOC_SIZE << " " << currentMS << std::endl;
 
