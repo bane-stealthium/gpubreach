@@ -469,31 +469,6 @@ int main(int argc, char **argv)
 
             if (!(iss >> addr_str))
             {
-                // std::cout << "Usage: poc-init <base_address>" << std::endl;
-                // std::cout << "  Sets the Status Queue base address for POC operations" << std::endl;
-                // std::cout << "  Note: In NO-UVM mode, base_address should be within g_d_buf range" << std::endl;
-                // continue;
-                // void *pt_rw_ptr = openIPCPointer(0);
-                // void *arb_rw_ptr = openIPCPointer(1);
-                // print_memory<<<1,1>>>((uint8_t*)pt_rw_ptr, 100);
-                // cudaDeviceSynchronize();
-                // print_memory<<<1,1>>>((uint8_t*)arb_rw_ptr, 100);
-                // cudaDeviceSynchronize();
-                // std::cout << "Pointers" << reinterpret_cast<uint64_t>(pt_rw_ptr) << ' ' <<
-                // reinterpret_cast<uint64_t>(arb_rw_ptr) << '\n'; uint64_t ofs = getPTOfs("./new_offset.bin");
-                // modify(pt_rw_ptr, ofs, (uint64_t)(0x060000000fff0005)); // Check Status Queue Offset
-                // raw = reinterpret_cast<uint64_t>(arb_rw_ptr) + 0x142000;
-                // std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-                // print_memory<<<1,1>>>((uint8_t*)pt_rw_ptr, 100);
-                // cudaDeviceSynchronize();
-                // print_memory<<<1,1>>>((uint8_t*)raw, 2L * 1024 * 1024);
-                // cudaDeviceSynchronize();
-                // gpuErrchk(cudaPeekAtLastError());
-                // paused();
-                // print_memory<<<1,1>>>((uint8_t*)raw, 2L * 1024 * 1024);
-                // cudaDeviceSynchronize();
-                // gpuErrchk(cudaPeekAtLastError());
-                // paused();
                 raw = reinterpret_cast<uint64_t>(g_d_buf) + find_nd_buffer(g_d_buf, g_d_buf_size) + 0x142000;
                 std::cout << "Auto-detected base address: 0x" << std::hex << raw << std::dec << std::endl;
             }
