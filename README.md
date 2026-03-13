@@ -1,11 +1,13 @@
-# GPUBreach (47th IEEE Symposium on Security and Privacy)
+# GPUBreach (47th IEEE Symposium on Security & Privacy, 2026)
 
 ## Introduction
 
 This is the code artifact for the paper 
-**"GPUBreach: Privilege Escalation Attacks on GPUs using Rowhammer"**, to be presented at [IEEE Security and Privacy (Oakland) 2026](https://sp2026.ieee-security.org/)
+**"GPUBreach: Privilege Escalation Attacks on GPUs using Rowhammer"**, to be presented at [IEEE Security & Privacy (Oakland) 2026](https://sp2026.ieee-security.org/)
 
-Authors from University of Toronto: Chris S. Lin, Yuqin Yan, Joyce Qu, Joseph Zhu, Guozhen Ding, David Lie, Gururaj Saileshwar.
+Authors: 
+Chris S. Lin, Yuqin Yan, Joyce Qu, Joseph Zhu, Guozhen Ding, David Lie, Gururaj Saileshwar.
+University of Toronto
 
 ## Artifacts Reproduced
 
