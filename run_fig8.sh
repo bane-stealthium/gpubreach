@@ -21,3 +21,5 @@ echo ""
 echo "###########################################"
 echo "[INFO] Result stored in results/fig8/fig8.pdf."
 echo "###########################################"
+
+sleep 3

@@ -112,9 +112,33 @@ This command will run the following steps:
   bash run_gpubreach.sh (< 5 minutes) # It will run the exploit automatically and print another process data
   ```
 
-and the results will be stored in `results/fig*`.
+and the results will be stored in `results/fig*`. 
 
-**NOTE:** We additionally provide sample outputs of all experiments in the folder `./results/sample`.
+> **NOTE:** We additionally provide sample outputs of all experiments in the folder `./results/sample`.
+
+#### Figure 5
+
+Reproduced with `bash run_fig5.sh`. It iteratively tries different allocation sizes and extract the data page sizes used with `gpu-tlb` dumper. The result is reproduced successfully if the output pdf have 4KB pages being used after 2MB, using `./results/sample/fig5.pdf` as reference.
+
+#### Figure 7
+
+Reproduced with `bash run_fig7.sh`. The result is reproduced successfully if the output pdf show timing spikes of ~0.2ms after ~24000 allocations, using `./results/sample/fig7.pdf` as reference. The timing may look slightly different than on our paper due to a different driving being used.
+
+#### Figure 8
+
+Reproduced with `bash run_fig8.sh`. The result is reproduced successfully if the output pdf show a timing spike for leaving 2MB freed but none for leaving 4MB free,using `./results/sample/fig8.pdf` as reference.
+
+#### Figure 10
+
+Reproduced with `bash run_fig10.sh`. The result is reproduced successfully if the output pdf show consistent timing spikes every 508 allocations, using `./results/sample/fig10.pdf` as reference.
+
+#### GPUBreach Demo
+
+Reproduced with `bash run_gpubreach_demo.sh`. The GPUBreach exploit chain will run automatically on our GPU and gain arbitrary read write privilege. The privliege is demonstrated by showing we can read and modify another program's data. The program in `./data_scripts/gpubreach_demo/sample_app.cu` is ran, of which initializes its data to **0xdeadbeefabcdabcd**.
+
+The artifact is reproduced correctly if `results/gpubreach_demo/memdump.txt` dumped by GPUBreach contains the **0xdeadbeefabcdabcd** data, and the `results/gpubreach_demo/app.out` shows "Modified. Exiting" which indicate its memory was modified by GPUBreach.
+
+> The exploit chain have a very low chance of crashing the program.
 
 ## Exploit
 

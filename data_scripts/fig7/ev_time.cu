@@ -52,7 +52,7 @@ int main(int argc, char **argv)
     uint64_t i = 0;
     while (i < 48L * 1024 * 1024 * 1024)
     {
-        double currentMS = time_data_access(temp, 2L * 1024 * 1024);
+        double currentMS = time_data_access(temp, 1);
 
         std::cout << i / ALLOC_SIZE << " " << currentMS << std::endl;
 
