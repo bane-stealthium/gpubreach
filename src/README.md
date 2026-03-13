@@ -11,8 +11,8 @@
 
 ├── 📄 CMakeList.txt
 ├── 📄 gpubreach_main.cu: main function to run different steps of GPUBreach.
-├── 📄 app_cli.cu: sample command line interface to try out arbitrary RW on GPU Memory.
-├── 📄 app_transfer.cu: sample program to transfer arbitrary RW primitive to another processs.
+├── 📄 app_demo.cu: Run GPUBreach, which will try to read and write another process's data.
+├── 📄 app_cpu_exploit.cu: GPUBreach program used to perform CPU-side exploit.
 ├── 📄 s1_allocallmem.*: Step 1 of GPUBreach, using UVM timing side-channel to get system memory limit.
 |
 ├── 📄 s2_firstRegion.*: Step 2 of GPUBreach, using UVM timing side-channel and 4KB page tables to massage PT regions to flippy locations.
