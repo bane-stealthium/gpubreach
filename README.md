@@ -47,7 +47,7 @@ Our reference system:
 
 **For Artifact Evaluation, jump directly to [Step 4 (Run Artifacts)](#4-run-artifacts), since we have already setup the environment (Steps 1 to 3).**
 
-### 1. Clone the Repository (Ignore for Zenodo users)
+## 1. Clone the Repository (Ignore for Zenodo users)
 
 Ensure you have already cloned the repository:
 ```bash
@@ -55,7 +55,7 @@ git clone https://github.com/sith-lab/gpubreach.git
 cd gpubreach
 ```
 
-### 2. NVIDIA Driver Setup
+## 2. NVIDIA Driver Setup
 
 Our profiling results require the set of tools developed in the [`gpu-tlb`](https://github.com/0x5ec1ab/gpu-tlb.git) repository. A version of this is included in our artifact. Patching the NVIDIA driver with the modifications from `gpu-tlb` works as follows: (this step can be skipped for AE, as we have the patched driver set up on our local GPU)
 
@@ -87,7 +87,7 @@ cd ../gpu-tlb/dumper && make
 cd ../extractor && make
 ```
 
-### 3. GPU Setup
+## 3. GPU Setup
 
 For the Rowhammer attack, a prerequiste is having **ECC disabled**. We observe that this is the default setting on A6000 GPUs on many cloud providers. But if it is enabled, use the following commands to disable it (we have already set this up on our local GPU, so you can skip this step for AE):
 
@@ -111,7 +111,7 @@ bash gpuhammer/util/init_cuda.sh 1800 7600
 
 These changes can be undone with `bash gpuhammer/util/reset_cuda.sh`.
 
-### 4. Run Artifacts
+## 4. Run Artifacts
 
 Run the following commands to setup environment variables, install dependencies, and build GPUBreach. 
 
@@ -120,7 +120,7 @@ cd gpubreach
 source ./init_env.sh
 ```
 
-#### 1. PT Massaging Primitives (Figures 5, 7, 8, 10)
+### 1. PT Massaging Primitives (Figures 5, 7, 8, 10)
 
 `./run_auto_artifacts.sh` runs the parts of the artifact that can be done _non-interactively_. This includes the PT Region Massaging Experiments (Fig 5, 7, 8, 10) and the demonstration of GPU-side privilege escalation, a core component of Exploits in Section 6.1 - 6.3. We use one of the bit flips already discovered in Table-2 (A1) for all these attacks for ease of reproducibility.
 
@@ -156,7 +156,7 @@ Reproduced with `bash run_fig10.sh`. The result is reproduced successfully if th
 
 
 
-#### 2. GPU Privilege Escalation (Sections 6.1-6.3)
+### 2. GPU Privilege Escalation (Sections 6.1-6.3)
 
 `./run_auto_artifacts.sh` already runs the parts of the artifact to demonstrate the GPU-side privilege escalation, a core component of Exploits in Section 6.1. We use one of the bit flips already discovered in Table-2 (A1) for all these attacks for ease of reproducibility.
 
@@ -175,7 +175,7 @@ GPU privilege escalation is successful if the results in `results/gpubreach_demo
 
 
 
-#### 3. CPU Privilege Escalation (Section 6.4)
+### 3. CPU Privilege Escalation (Section 6.4)
 
 
 
