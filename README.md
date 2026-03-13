@@ -45,7 +45,7 @@ Our reference system:
 
 ## Steps for Artifact Evaluation
 
-**For Artifact Evaluation, jump directly to [Step 4](#4-run-artifacts), since we have already setup the environment (Steps 1 to 3).**
+**For Artifact Evaluation, jump directly to [Step 4 (Run Artifacts)](#4-run-artifacts), since we have already setup the environment (Steps 1 to 3).**
 
 ### 1. Clone the Repository (Ignore for Zenodo users)
 
