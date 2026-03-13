@@ -7,12 +7,9 @@ NVCC_FLAGS += -Wno-deprecated-gpu-targets -Xcompiler -Wall
 
 .PHONY: all clean
 
-all: mem-operator sample
+all: mem-operator
 
-mem-operator: mem-operator.cu transfer.cuh
-	$(NVCC) $(NVCC_FLAGS) -o $@ $< $(LIBS)
-
-sample: sample_app.cu transfer.cuh
+mem-operator: mem-operator.cu
 	$(NVCC) $(NVCC_FLAGS) -o $@ $< $(LIBS)
 
 clean:

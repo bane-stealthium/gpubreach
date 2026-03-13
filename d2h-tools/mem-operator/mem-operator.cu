@@ -22,7 +22,6 @@
 #include <unistd.h>
 
 #include "checksum_helper.h" // POC checksum calculation
-#include "transfer.cuh"
 
 #define CHECK(call)                                                                                                    \
     do                                                                                                                 \
