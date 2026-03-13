@@ -72,7 +72,7 @@ bash gpuhammer/util/init_cuda.sh 1800 7600
 
 These changes can be undone with `bash gpuhammer/util/reset_cuda.sh`.
 
-### 2. NVIDIA Driver Setup
+### 3. NVIDIA Driver Setup
 
 Certain results require prior work's [`gpu-tlb`](https://github.com/0x5ec1ab/gpu-tlb.git), where a version is included in this artifact. Install the driver and apply the patches like so:
 
