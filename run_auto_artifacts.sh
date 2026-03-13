@@ -4,6 +4,8 @@ echo "###########################################"
 echo "[INFO] 1. Build Executables and Install Dependencies"
 echo "###########################################"
 
+python3 -m pip install matplotlib
+
 cd gpuhammer/src
 rm -rf out
 cmake -S . -B out/build
