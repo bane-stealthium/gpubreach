@@ -136,8 +136,7 @@ def main():
         arg_4_setup(subparsers, name, help, arg4_tasks)
 
     task_tuple = [
-        ("app_cli", "Command line interface for navigating and editing the GPU Physical Memory"),
-        ("app_transfer", "Command line interface for transferring arbitrary RW primitive to another process through IPC"),
+        ("app_cpu_exploit", "Command line interface for transferring arbitrary RW primitive to another process through IPC"),
         ("app_demo", "Demo using GPUBreach, dumping and changing other process' memory."),
     ]
     for name, help in task_tuple:
