@@ -30,9 +30,9 @@ add_executable(app_cli ./app_cli.cu)
 target_link_libraries(app_cli PUBLIC gpubreach_lib)
 target_link_libraries(app_cli PUBLIC hammer_lib)
 
-add_executable(app_transfer ./app_transfer.cu)
-target_link_libraries(app_transfer PUBLIC gpubreach_lib)
-target_link_libraries(app_transfer PUBLIC hammer_lib)
+add_executable(app_cpu_exploit ./app_cpu_exploit.cu)
+target_link_libraries(app_cpu_exploit PUBLIC gpubreach_lib)
+target_link_libraries(app_cpu_exploit PUBLIC hammer_lib)
 
 add_executable(app_demo ./app_demo.cu)
 target_link_libraries(app_demo PUBLIC gpubreach_lib)
