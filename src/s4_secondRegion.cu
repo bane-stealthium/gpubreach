@@ -50,6 +50,7 @@ second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg,
 
   std::vector<uint8_t*> fourkb_pages;
   for (uint64_t i = 0; i < (((uint64_t)corrupted_ptr % (2L * 1024 * 1024)) / 4096) + 1; i += 1)
+  // for (uint64_t i = 0; i < 512 + 1; i += 1)
     {
       cudaMallocManaged (&temp, ALLOC_SIZE + 4096);
 
@@ -92,7 +93,7 @@ second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg,
                "means they are the 4KB PTEs.\n"
                "Press \033[1;32mEnter Key\033[0m to continue..."
             << '\n';
-  pause();
+  paused();
   return 0;
 }
 

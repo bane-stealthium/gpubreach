@@ -70,7 +70,7 @@ double time_data_access(uint8_t *array, uint64_t size);
 
 void evict_from_device(uint8_t *array, uint64_t size);
 
-void pause();
+void paused();
 
 void gen_64KB(char *array, uint64_t size);
 

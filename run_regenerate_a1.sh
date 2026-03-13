@@ -16,7 +16,7 @@ iterations=46000
 mem_size=$((46 * (1 << 30)))
 num_rows=31400
 
-banks=(A)
+banks=(B)
 flips=(30016)
 delays=(55)
 vic_pos=(4)
@@ -40,51 +40,53 @@ check_bitflip() {
     && grep -qP "Data Pattern: 0x55 -> 0x45" "$file"
 }
 
-for i in {0..0}; do
-    
-    bank_id=${banks[$i]}
-    flip_row=${flips[$i]}
-    delay=${delays[$i]}
-    flip_name=${flip_names[$i]}
+while true; do
+    for i in {0..0}; do
+        
+        bank_id=${banks[$i]}
+        flip_row=${flips[$i]}
+        delay=${delays[$i]}
+        flip_name=${flip_names[$i]}
 
-    min_rowid=$((flip_row - 94))
-    max_rowid=$((flip_row + 5))
+        min_rowid=$((flip_row - 94))
+        max_rowid=$((flip_row + 5))
 
-    mkdir -p $dirname/$flip_name
+        mkdir -p $dirname/$flip_name
 
-    echo "Start hammering bank $bank_id row $flip_row"
+        echo "Start hammering bank $bank_id row $flip_row"
 
-    for j in {0..1}; do
+        for j in {0..1}; do
 
-        k=$((1-j))
-        vic_pat=0x${pats[$j]}
-        agg_pat=0x${pats[$k]}
+            k=$((1-j))
+            vic_pat=0x${pats[$j]}
+            agg_pat=0x${pats[$k]}
 
-        expected=$(( (vic_pat >> vic_pos[i]) & 1 ))
-        if [ $expected -ne ${vic_num[$i]} ]; then
-            # echo "- Skip   Victim: $vic_pat"
-            continue
-        fi
+            expected=$(( (vic_pat >> vic_pos[i]) & 1 ))
+            if [ $expected -ne ${vic_num[$i]} ]; then
+                # echo "- Skip   Victim: $vic_pat"
+                continue
+            fi
 
-        # File paths
-        rowset_file="$HAMMER_ROOT/results/row_sets/ROW_SET_${bank_id}.txt"
-        log_file="$dirname/$flip_name/${num_agg}agg_b${bank_id}_flip${flip_row}_${pats[$j]}${pats[$k]}.log"
-        bitflip_file="$dirname/$flip_name/${num_agg}agg_b${bank_id}_count_flip${flip_row}_${pats[$j]}${pats[$k]}.txt"
+            # File paths
+            rowset_file="$HAMMER_ROOT/results/row_sets/ROW_SET_${bank_id}.txt"
+            log_file="$dirname/$flip_name/${num_agg}agg_b${bank_id}_flip${flip_row}_${pats[$j]}${pats[$k]}.log"
+            bitflip_file="$dirname/$flip_name/${num_agg}agg_b${bank_id}_count_flip${flip_row}_${pats[$j]}${pats[$k]}.txt"
 
-        echo "- Victim Pattern: $vic_pat, Aggressor Pattern: $agg_pat"
+            echo "- Victim Pattern: $vic_pat, Aggressor Pattern: $agg_pat"
 
-        $HAMMER_ROOT/src/out/build/gpu_hammer $rowset_file $((num_agg - 1)) $addr_step $iterations $min_rowid $max_rowid $row_step $skip_step $mem_size $num_warp $num_thread $delay $round $count_iter $num_rows $vic_pat $agg_pat $bitflip_file > $log_file
+            $HAMMER_ROOT/src/out/build/gpu_hammer $rowset_file $((num_agg - 1)) $addr_step $iterations $min_rowid $max_rowid $row_step $skip_step $mem_size $num_warp $num_thread $delay $round $count_iter $num_rows $vic_pat $agg_pat $bitflip_file > $log_file
 
-        sleep 3
+            sleep 3
 
-        if check_bitflip $log_file; then
-            echo "MATCH: Expected bit-flip A1 pattern found in $log_file"
-            exit 0
-        else
-            echo "NO MATCH: Pattern not found in $log_file"
-            exit 1
-        fi
+            if check_bitflip $log_file; then
+                echo "MATCH: Expected bit-flip A1 pattern found in $log_file"
+                exit 0
+            else
+                echo "NO MATCH: Pattern not found in $log_file"
+                # exit 1
+            fi
+
+        done
 
     done
-
 done

@@ -1,18 +1,24 @@
 #include <cuda_runtime.h>
 #include <fstream>
 #include <iostream>
+#include "./transfer.cuh"
 
-void
-pause ()
+__global__ void initialize_memory_loop(uint8_t *array, uint64_t size)
 {
-    std::cin.clear();
-    while (std::cin.get() != '\n');
+    for (uint64_t i = 0; i < size; i += 65536)
+        *(uint8_t**)(array + i) = array + i;
 }
 
-__global__ void memset_ptr(uint8_t *dst, uint64_t src, uint64_t size)
-{
-    for (size_t i = 0; i < size; i += 8) {
-        *(uint64_t*)(dst + i) = src; // array-style access
+void gen_64KB(char *array, uint64_t size){
+    for (uint64_t i = 0; i < size; i += 2 * 1024 * 1024)
+        *(char**)(array + i) = (array + i);
+}
+
+__global__ void simple_flush(char *array, uint64_t size){
+    for (uint64_t i = 0; i < size; i += 64 * 1024)
+    {
+        if (( i % (2 * 1024 * 1024) ) != 0)
+            *(char**)(array + i) = (array + i);
     }
 }
 
@@ -43,62 +49,83 @@ void cudaMemcpyArray(T* dst, const T* src, size_t numElements, cudaMemcpyKind ki
 }
 
 int main() {
-    void* copy_ptr;
-    cudaMallocManaged(&copy_ptr, 8);
 
+    void *ptr;
+    cudaMalloc(&ptr, 2L * 1024 * 1024);
+    memset_ptr<<<1,1>>>((uint8_t*)ptr, 0x6464646464646464, 2L * 1024 * 1024);
+    cudaDeviceSynchronize();
+    std::cout << "Done" << ptr << '\n';
+    paused();
+    // void* copy_ptr;
+    // cudaMallocManaged(&copy_ptr, 8);
 
-    void* pt_rw_ptr;
-    void* arb_rw_ptr;
-
-    cudaIpcMemHandle_t handle_pt;
-    cudaIpcMemHandle_t handle_arb;
-    std::ifstream file_pt("./cuda_ipc_pt.bin", std::ios::binary);
-    file_pt.read(reinterpret_cast<char*>(&handle_pt), sizeof(handle_pt));
-    file_pt.close();
-    std::ifstream file_arb("./cuda_ipc_arb.bin", std::ios::binary);
-    file_arb.read(reinterpret_cast<char*>(&handle_arb), sizeof(handle_arb));
-    file_arb.close();
-    cudaIpcOpenMemHandle(&pt_rw_ptr, handle_pt,
-                         cudaIpcMemLazyEnablePeerAccess);
-
-    cudaIpcOpenMemHandle(&arb_rw_ptr, handle_arb,
-                         cudaIpcMemLazyEnablePeerAccess);
+    // void* pt_rw_ptr = openIPCPointer(0);
+    // void* arb_rw_ptr = openIPCPointer(1);
     
-    std::cout << pt_rw_ptr  << ' ' << arb_rw_ptr << '\n';
+    // std::cout << pt_rw_ptr  << ' ' << arb_rw_ptr << '\n';
 
-    std::cout << "Opened both CUDA IPC memory regions\n";
+    // std::cout << "Opened both CUDA IPC memory regions\n";
 
-    cudaMemcpyArray((uint8_t*)copy_ptr, (uint8_t*)pt_rw_ptr, 8);
-    std::cout << pt_rw_ptr << *(void**)copy_ptr << '\n';
-    cudaMemcpyArray((uint8_t*)copy_ptr, (uint8_t*)(arb_rw_ptr), 8);
-    std::cout << arb_rw_ptr << *(void**)copy_ptr << '\n';
-
-    // Example usage
-    pause();
-    uint64_t ofs;
-    std::ifstream newfile("./new_offset.bin", std::ios::binary);
-    newfile.read(reinterpret_cast<char*>(&ofs), sizeof(ofs));
-    newfile.close();
-
-    cudaMemcpyArray((uint8_t*)copy_ptr, (uint8_t*)pt_rw_ptr + ofs, 8);
-    std::cout << pt_rw_ptr << *(void**)copy_ptr << '\n';
+    // cudaMemcpyArray((uint8_t*)copy_ptr, (uint8_t*)pt_rw_ptr, 8);
+    // std::cout << pt_rw_ptr << *(void**)copy_ptr << '\n';
     // cudaMemcpyArray((uint8_t*)copy_ptr, (uint8_t*)(arb_rw_ptr), 8);
     // std::cout << arb_rw_ptr << *(void**)copy_ptr << '\n';
 
+    // uint64_t ofs = getPTOfs("./new_offset.bin");
 
-    pause();
+    // std::cout << ofs << '\n';
+
+    // cudaMemcpyArray((uint8_t*)copy_ptr, (uint8_t*)pt_rw_ptr, 8);
+    // std::cout << pt_rw_ptr << *(void**)copy_ptr << '\n';
+    // cudaMemcpyArray((uint8_t*)copy_ptr, (uint8_t*)(arb_rw_ptr), 8);
+    // std::cout << arb_rw_ptr << *(void**)copy_ptr << '\n';
+
+    // //Example usage
+    // paused();
+
+    // // cudaMemcpyArray((uint8_t*)copy_ptr, (uint8_t*)pt_rw_ptr + ofs, 8);
+    // // std::cout << pt_rw_ptr << *(void**)copy_ptr << '\n';
+    // // memset_ptr<<<1,1>>>((uint8_t *)arb_rw_ptr, (uint64_t)(0x60000000000001), 8);
+    // // cudaDeviceSynchronize();
+    // // cudaMemcpyArray((uint8_t*)copy_ptr, (uint8_t*)(arb_rw_ptr), 8);
+    // // std::cout << arb_rw_ptr << *(void**)copy_ptr << '\n';
 
 
-    memset_ptr<<<1,1>>>((uint8_t *)pt_rw_ptr + ofs, (uint64_t)(0x60000000000001), 8);
-    cudaDeviceSynchronize();
-    cudaMemcpyArray((uint8_t*)copy_ptr, (uint8_t*)pt_rw_ptr + ofs, 8);
-    std::cout << pt_rw_ptr << *(void**)copy_ptr << '\n';
-    cudaMemcpyArray((uint8_t*)copy_ptr, (uint8_t*)(arb_rw_ptr), 8);
-    std::cout << arb_rw_ptr << *(void**)copy_ptr << '\n';
+    // // pause();
 
+    // // cudaMemcpyArray((uint8_t*)copy_ptr, (uint8_t*)pt_rw_ptr + ofs, 8);
+    // // std::cout << pt_rw_ptr << *(void**)copy_ptr << '\n';
+    // // cudaMemcpyArray((uint8_t*)copy_ptr, (uint8_t*)(arb_rw_ptr), 8);
+    // // std::cout << arb_rw_ptr << *(void**)copy_ptr << '\n';
 
-    pause();
+    // // modify(pt_rw_ptr, ofs, (uint64_t)(0x60000016dc0001));
+    // // cudaDeviceSynchronize();
+    
+    // char * flush_ptr;
+    // uint8_t *data_device_ptr;
+    // uint64_t flush_size = 4L * 1024 * 1024 * 1024;
+    // cudaMallocManaged(&flush_ptr, flush_size);
+    // cudaMallocManaged(&data_device_ptr, 2L * 1024 * 1024);
 
-    cudaIpcCloseMemHandle(pt_rw_ptr);
-    cudaIpcCloseMemHandle(arb_rw_ptr);
+    // initialize_memory_loop<<<1,1>>>((uint8_t*)flush_ptr, flush_size);
+    // cudaDeviceSynchronize();
+    // gpuErrchk(cudaPeekAtLastError());
+
+    // // Generate 64KB Pages
+    // gen_64KB(flush_ptr, flush_size);
+
+    // // Flush
+    // simple_flush<<<1,1>>>(flush_ptr, flush_size);
+    // cudaDeviceSynchronize();
+    // gpuErrchk(cudaPeekAtLastError());
+
+    // cudaMemcpyArray((uint8_t*)copy_ptr, (uint8_t*)pt_rw_ptr + ofs, 8);
+    // std::cout << pt_rw_ptr << *(void**)copy_ptr << '\n';
+    // cudaMemcpyArray((uint8_t*)copy_ptr, (uint8_t*)(arb_rw_ptr), 8);
+    // std::cout << arb_rw_ptr << *(void**)copy_ptr << '\n';
+
+    // paused();
+
+    // cudaIpcCloseMemHandle(pt_rw_ptr);
+    // cudaIpcCloseMemHandle(arb_rw_ptr);
 }

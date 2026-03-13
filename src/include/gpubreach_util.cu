@@ -153,7 +153,7 @@ get_aggressor_rows_from_offset (
 }
 
 void
-pause ()
+paused ()
 {
     std::cin.clear();
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');

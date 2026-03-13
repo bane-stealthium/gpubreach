@@ -181,6 +181,8 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
       const uint64_t delay = 55;
       const uint64_t period = 1;
 
+      std::cout << "Before:" << '\n';
+      paused();
       for (int j = 0; j < 50; j++)
         uint64_t time = start_multi_warp_hammer (
             agg_row_list, agg_vec, it, n, k, agg_vec.size (), delay, period);
@@ -232,6 +234,7 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
         }
       else
         std::cout << "No Corruption Found, Retrying..." << "\n\n";
+      paused();
     }
 
 
@@ -248,7 +251,7 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
   std::cout << "(Step 3 Success) Found Corrupted PFN Destination: Press "
                "\033[1;32mEnter Key\033[0m to continue..."
             << '\n';
-  pause ();
+  paused ();
 
   return true;
 }
