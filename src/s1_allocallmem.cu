@@ -118,10 +118,16 @@ alloc_all_mem (uint64_t num_alloc, double threshold, uint64_t skip, GPUBreachCon
 
       temp += ALLOC_SIZE;
     }
-  std::cout << "(Step 1 Success) Memory Allocated to Full: Press "
-               "\033[1;32mEnter Key\033[0m to continue..."
-            << '\n';
-  paused ();
-
+  if (debug_enabled())
+  {
+    std::cout << "(Step 1 Done) Memory Allocated to Full: Press "
+                "\033[1;32mEnter Key\033[0m to continue..."
+              << '\n';
+    paused ();
+  }
+  else
+  {
+    std::cout << "(Step 1 Done) Memory Allocated to Full\n";
+  }
   return true;
 }

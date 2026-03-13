@@ -214,10 +214,18 @@ first_PT_region (uint64_t num_alloc_init, double threshold, uint64_t skip, GPUBr
         next_id = i + 508;
     }
 
-  std::cout << "(Step 2 Success) First PT Region Generated: Press "
+  if (debug_enabled())
+  {
+    std::cout << "(Step 2 Done) First PT Region Generated: Press "
                "\033[1;32mEnter Key\033[0m to continue... "
             << '\n';
-  paused ();
+    paused ();
+  }
+  else
+  {
+    std::cout << "(Step 2 Done) First PT Region Generated\n";
+  }
+
   /****************************************************************/
 
   /* Free up GPU/CPU memory by releasing the evicted memories */
