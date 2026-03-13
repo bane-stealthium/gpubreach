@@ -8,6 +8,8 @@ echo "Project root dir: $GPU_HAMMER_ROOT"
 GPU_DUMPER_DIR="$GPU_HAMMER_ROOT/gpu_mem_dumper"
 EXTRACTOR_DIR="$GPU_DUMPER_DIR/extractor"
 DUMPER_DIR="$GPU_DUMPER_DIR/dumper"
+ANALYZE_PATH="$GPU_DUMPER_DIR/scripts/analyze_alloc.py"
+IOVA_BASE="0xfff00000"
 
 # Check if binaries exist
 if [ ! -x "$DUMPER_DIR/dumper" ]; then
@@ -56,4 +58,4 @@ echo "Dump and extraction complete. Files are in $GPU_HAMMER_ROOT/dumps"
 echo -e "\e[32m\u2714[OK] Dump and extraction complete. Files are in $GPU_HAMMER_ROOT/dumps\e[0m"
 
 
-
+$GPU_DUMPER_DIR/modifier/modifier $(python3 "$ANALYZE_PATH" "$GPU_HAMMER_ROOT/dumps/alloc.txt" "$IOVA_BASE")
