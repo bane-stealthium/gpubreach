@@ -1,0 +1,21 @@
+diff --git a/src/nvidia/src/kernel/gpu/gsp/message_queue_cpu.c b/src/nvidia/src/kernel/gpu/gsp/message_queue_cpu.c
+index 80c7212c..bada30ab 100644
+--- a/src/nvidia/src/kernel/gpu/gsp/message_queue_cpu.c
++++ b/src/nvidia/src/kernel/gpu/gsp/message_queue_cpu.c
+@@ -286,6 +286,16 @@ GspMsgQueuesInit
+     lastQueueVa   = NV_PTR_TO_NvP64(pRmQueueInfo->pStatusQueue);
+     lastQueueSize = pRmQueueInfo->statusQueueSize;
+ 
++    NvU64 statusQueueOffset = pMQCollection->pageTableSize + pRmQueueInfo->commandQueueSize;
++    RmPhysAddr statusQueueIOVA = 0;
++
++    NV_PRINTF(LEVEL_ERROR, "[GPUBREACH-D2H] Status Queue address info:\n");
++    NV_PRINTF(LEVEL_ERROR, "[GPUBREACH-D2H]   Status Queue CPU VA: 0x%p\n", pRmQueueInfo->pStatusQueue);
++    NV_PRINTF(LEVEL_ERROR, "[GPUBREACH-D2H]   Status Queue Offset: 0x%llx\n", statusQueueOffset);
++
++    statusQueueIOVA = memdescGetPhysAddr(pMQCollection->pSharedMemDesc, AT_GPU, statusQueueOffset);
++    NV_PRINTF(LEVEL_ERROR, "[GPUBREACH-D2H]   Status Queue IOVA (GPU view): 0x%llx\n", statusQueueIOVA);
++
+     // Assert that the last queue offset + size fits into the shared memory.
+     NV_ASSERT(NvP64_PLUS_OFFSET(pVaKernel, sharedBufSize) ==
+               NvP64_PLUS_OFFSET(lastQueueVa, lastQueueSize));
