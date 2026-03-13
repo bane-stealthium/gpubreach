@@ -174,8 +174,18 @@ GPU privilege escalation is successful if the results in `results/gpubreach_demo
 > There is a very low probability of the exploit chain crashing the attacker program, in which case you can simply re-run `bash run_gpubreach.sh `
 
 
-
 ### 3. CPU Privilege Escalation (Section 6.4)
 
 
+### Debugging Tips
 
+1. After out-of-band restart, due to voltage changes, we notice bit-flips will disappear for a while. Whenever a restart happend, run the following to check for bit-flip:
+
+   ```bash
+   cd gpubreach
+
+   source ./init_env.sh # Not needed if already ran before
+   bash run_regenerate_a1.sh
+   ```
+
+   It will iteratively hammer and check whether bit-flip re-appeared. Unfortunately, when exactly it will re-appear is not known. You may choose to wait a few hours or a day before restarting the process.
