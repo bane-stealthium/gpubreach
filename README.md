@@ -88,9 +88,20 @@ chmod +x NVIDIA-Linux-x86_64-580.95.05.run
 cd NVIDIA-Linux-x86_64-580.95.05/
 
 # This patch works for our version as well.
-patch -p1 < ./gpu-tlb/dumper/patch/driver-570.133.07.patch
+patch -p1 < ../gpu-tlb/dumper/patch/driver-570.133.07.patch
+```
 
+Now use the installer to install the driver. Please select **MIT/GPL** installation.
+
+```bash
 sudo ./nvidia-installer
+```
+
+Afterward, run these to make the `gpu-tlb` dumper.
+
+```bash
+cd ../gpu-tlb/dumper && make
+cd ../extractor && make
 ```
 
 ## Run Automatable Artifacts
@@ -111,7 +122,7 @@ This command will run the following steps:
   bash run_fig7.sh (< 1 minutes) # UVM eviction side-channel to identify when memory is full
   bash run_fig8.sh (< 1 minutes) # UVM eviction side-channel when PT region is allocated with the memory
   bash run_fig10.sh (< 1 minutes) # UVM eviction side-channel using 4KB Pages
-  bash run_gpubreach.sh (< 5 minutes) # It will run the exploit automatically and print another process data
+  bash run_gpubreach.sh (< 5 minutes) # It will run the exploit automatically and print another process's data
   ```
 
 and the results will be stored in `results/fig*`. 
