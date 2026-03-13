@@ -97,17 +97,7 @@ second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg,
     paused ();
   }
   else
-  {
     std::cout << "(Step 4 Done) Second PT Region Now in Attacker Controlled Region\n";
-  }
-  // std::cout << "(Step 4 Success) Second PT Region Now in Attacker Controlled "
-  //              "Region. We printed out the PTEs of the controlled page and provided "
-  //              "relevant pointers to interact with them in struct S4_ExploitComplete.\n"
-  //              "Those looking like '1 0 76 3 0 0 0 6' are 2MB cudaMalloc PTEs, while '1 55 b4 59 0 0 0 6' "
-  //              "means they are the 4KB PTEs.\n"
-  //              "Press \033[1;32mEnter Key\033[0m to continue..."
-  //           << '\n';
-  // paused();
   return 0;
 }
 
