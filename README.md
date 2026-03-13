@@ -125,7 +125,7 @@ This command will run the following steps:
   bash run_gpubreach.sh (< 5 minutes) # It will run the exploit automatically and print another process's data
   ```
 
-and the results will be stored in `results/fig*`. 
+and the results will be stored in `results/`. 
 
 > **NOTE:** We additionally provide sample outputs of all experiments in the folder `./results/sample`.
 
