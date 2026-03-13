@@ -84,28 +84,27 @@ std::pair<RowList, std::vector<uint64_t>> get_aggressor_rows_from_offset(std::ve
 
 template <typename T>
 __global__ void cudaMemcpyKernel(T* dst, const T* src, size_t numElements) {
-    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-    size_t stride = blockDim.x * gridDim.x;
+    size_t idx = threadIdx.x;
+    size_t stride = blockDim.x; // 1024
+
     for (size_t i = idx; i < numElements; i += stride) {
-        dst[i] = src[i]; // array-style access
+        dst[i] = src[i];
     }
 }
 
 // Custom memcpy (device-to-device by default)
 template <typename T>
 void cudaMemcpyArray(T* dst, const T* src, size_t numElements, cudaMemcpyKind kind = cudaMemcpyDeviceToDevice) {
-    // Choose reasonable launch configuration
-    int blockSize = 256;
-    int numBlocks = (numElements + blockSize - 1) / blockSize;
-
     // Launch the kernel if both pointers are device pointers
     if (kind == cudaMemcpyDeviceToDevice) {
-        cudaMemcpyKernel<<<numBlocks, blockSize>>>(dst, src, numElements);
+        // cudaMemPrefetchAsync(src, numElements * sizeof(T), device);
+        cudaMemcpyKernel<<<1, 1024>>>(dst, src, numElements);
         cudaDeviceSynchronize();
     } else {
         // Fallback to standard cudaMemcpy for other directions
         cudaMemcpy(dst, src, numElements * sizeof(T), kind);
     }
+     gpuErrchk(cudaPeekAtLastError());
 }
 
 #endif /* GPUBREACH_UTIL_CUH */

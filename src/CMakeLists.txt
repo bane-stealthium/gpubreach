@@ -33,3 +33,7 @@ target_link_libraries(app_cli PUBLIC hammer_lib)
 add_executable(app_transfer ./app_transfer.cu)
 target_link_libraries(app_transfer PUBLIC gpubreach_lib)
 target_link_libraries(app_transfer PUBLIC hammer_lib)
+
+add_executable(app_demo ./app_demo.cu)
+target_link_libraries(app_demo PUBLIC gpubreach_lib)
+target_link_libraries(app_demo PUBLIC hammer_lib)
