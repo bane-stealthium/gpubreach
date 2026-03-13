@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+
+import argparse
+import subprocess
+
+def arg_2_setup(subparsers, func):
+    parser = subparsers.add_parser(
+        "all_mem_test",
+        help="Step 1 Testing: Should output n_step1 for furthur steps"
+    )
+    parser.add_argument(
+        "-t", "--threshold",
+        type=float,
+        help="Timing side-channel threshold that is considered as an eviction."
+    )
+    parser.add_argument(
+        "-s", "--skip",
+        type=int,
+        help="Skip a specified amount of measurements, as the first few can be slow from GPU warmup."
+    )
+    parser.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="Print out debug information like timing or relevant addresses"
+    )
+    parser.set_defaults(func=func)
+
+
+def arg_3_setup(subparsers, name, help, func):
+    parser = subparsers.add_parser(
+        name,
+        help=help
+    )
+    parser.add_argument(
+        "--n_step1",
+        type=int,
+        help="Numer of 2MB allocations in step 1 that will fill the GPU memory to full."
+    )
+    parser.add_argument(
+        "-t", "--threshold",
+        type=float,
+        help="Timing side-channel threshold that is considered as an eviction."
+    )
+    parser.add_argument(
+        "-s", "--skip",
+        type=int,
+        help="Skip a specified amount of measurements, as the first few can be slow from GPU warmup."
+    )
+    parser.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="Print out debug information like timing or relevant addresses"
+    )
+    parser.set_defaults(func=func)
+
+
+def arg_4_setup(subparsers, name, help, func):
+    parser = subparsers.add_parser(
+        name,
+        help=help,
+    )
+    parser.add_argument(
+        "--n_step1",
+        type=int,
+        help="Numer of 2MB allocations in step 1 that will fill the GPU memory to full."
+    )
+    parser.add_argument(
+        "--n_step3",
+        type=int,
+        help="Numer of 2MB allocations before step 3 that re-fills the GPU memory with dense PT regions."
+    )
+    parser.add_argument(
+        "-t", "--threshold",
+        type=float,
+        help="Timing side-channel threshold that is considered as an eviction."
+    )
+    parser.add_argument(
+        "-s", "--skip",
+        type=int,
+        help="Skip a specified amount of measurements, as the first few can be slow from GPU warmup."
+    )
+    parser.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="Print out debug information like timing or relevant addresses"
+    )
+    parser.set_defaults(func=func)
+
+
+def run_command(command):
+    print("Running: " + command)
+    p = subprocess.Popen(command, shell=True)
+    p.wait()
+
+
+def all_mem_test(args):
+   run_command(f"BREACH_DEBUG={1 if args.verbose else 0} ./gpubreach_main {args.command} {args.threshold} {args.skip}")
+
+
+def arg3_tasks(args):
+    run_command(f"BREACH_DEBUG={1 if args.verbose else 0} ./gpubreach_main {args.command} {args.n_step1} {args.threshold} {args.skip}")
+
+def arg4_tasks(args):
+    run_command(f"BREACH_DEBUG={1 if args.verbose else 0} ./gpubreach_main {args.command} {args.n_step1} {args.n_step3} {args.threshold} {args.skip}")
+
+def arg4_tasks_app(args):
+    run_command(f"BREACH_DEBUG={1 if args.verbose else 0} ./{args.command} {args.n_step1} {args.n_step3} {args.threshold} {args.skip}")
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="GPUBreach CLI tool"
+    )
+
+    subparsers = parser.add_subparsers(
+        dest="command",
+        required=True,
+        help="Available tasks"
+    )
+
+    # -------- Task 1 --------
+    arg_2_setup(subparsers, all_mem_test)
+    task_tuple = [
+        ("all_mem", "Step 1: Fill GPU memory to full with n_step1 2MB allocations"),
+        ("first_region_test", "Step 2 Testing: Should output timing for 2MB+4KB page allocations, used to verify whether the side-channel is working"),
+        ("first_region", "Step 2: Massage a PT region into the specified bit-flip page."),
+        ("first_region_atk_mem_test", "Step 3 Testing: Should output n_step3 for furthur steps."),
+    ]
+    for name, help in task_tuple:
+        arg_3_setup(subparsers, name, help, arg3_tasks)
+
+    task_tuple = [
+        ("first_region_atk", "Step 3: Attempts to corrupt PTEs in the massaged PT region"),
+        ("second_region", "Step 4: Massage another PT region into the corrupted location."),
+    ]
+    for name, help in task_tuple:
+        arg_4_setup(subparsers, name, help, arg4_tasks)
+
+    task_tuple = [
+        ("app_cli", "Command line interface for navigating and editing the GPU Physical Memory"),
+        ("app_transfer", "Command line interface for transferring arbitrary RW primitive to another process through IPC"),
+    ]
+    for name, help in task_tuple:
+        arg_4_setup(subparsers, name, help, arg4_tasks_app)
+    
+    
+    args = parser.parse_args()
+
+    # Dispatch to the selected task
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()

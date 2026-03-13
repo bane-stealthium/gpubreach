@@ -1,0 +1,9 @@
+__pycache__/
+.vscode/
+.history/
+d_pattern.bin
+dumps/
+gpu_mem_dumper/extractor/alloc.txt
+logs/
+mem-operator/mem-operator
+*.bak
