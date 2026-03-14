@@ -305,7 +305,7 @@ Now you are ready to move on to Step 4.
 
 #### Step 4: Execute Privilege Escalation
 
-In the command prompt that opened in Step 2, run the following application commands step by step. Note that `>` means that these commands are run in the GPU memory operator's command prompt, not the regular shell.
+In the command prompt that was opened using `./mem-operator` in either Step 2 or Step 3 (Case 2), run the following application commands step by step. Note that `>` means that these commands are run in the GPU memory operator's command prompt, not the regular shell.
 
 ```bash
 > poc-init
