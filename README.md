@@ -9,7 +9,7 @@ Authors:
 Chris S. Lin, Yuqin Yan, Joyce Qu, Joseph Zhu, Guozhen Ding, David Lie, Gururaj Saileshwar.
 University of Toronto
 
-## Artifacts Reproduced
+## Results Reproduced by this Artifact
 
 In this artifact, we aim to reproduce the following:
 1. PT Massaging Primitives (Figure 5, 7, 8, and 10)
