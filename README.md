@@ -205,7 +205,7 @@ NUMA:
 
 ##### Build and load the credential structure dumping module
 
-This step provides the service of getting the address of the `cred` structure, derived from the assumption that a process's `cred` data structure can be leaked via other side-channels.
+This step gets the address of the `cred` structure. This is based on the exploit's assumption that a process's `cred` data structure can be leaked via other side-channels.
 
 ```bash
 $ cd cred_mod/
