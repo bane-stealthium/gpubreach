@@ -1,6 +1,7 @@
 source init_env.sh
 cd ./gpu-tlb/dumper && make
 cd ../extractor/ && make
+cd ../modifier/ && make
 
 cd ../..
 

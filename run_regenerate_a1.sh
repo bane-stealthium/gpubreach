@@ -16,7 +16,7 @@ iterations=46000
 mem_size=$((46 * (1 << 30)))
 num_rows=31400
 
-banks=(B)
+banks=(A)
 flips=(30016)
 delays=(55)
 vic_pos=(4)

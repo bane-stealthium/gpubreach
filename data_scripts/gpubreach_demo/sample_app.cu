@@ -54,7 +54,7 @@ int main() {
         cudaMemcpyArray((uint8_t*)read_ptr + 8, (uint8_t*)ptr + 8, 8);
         if (*(uint64_t*)((uint8_t*)read_ptr + 8) != 0xdeadbeefabcdabcd)
         {
-            std::cout << "\nModified. Exiting" << '\n' << std::flush;
+            std::cout << "\nModified. Exiting" << '\n' <<  "New Value: " << *(uint64_t*)((uint8_t*)read_ptr + 8) << std::flush;
             break;
         }
         else
