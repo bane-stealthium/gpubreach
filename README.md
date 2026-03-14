@@ -258,7 +258,7 @@ If you just want to verify the exploit without running the GPU RowHammer part (C
 
 ##### Case 1: If you want to just verify the CPU-side privilege escalation
 
-Note that the GPU's IOVA value is stable across runnings and machines, always 0xffe41000 or 0xfff41000. Unforunately, we do not know which one is used on each bootup, thus the attack may fail from time to time.
+Note that the GPU's IOVA value is stable across runs and machines, always 0xffe41000 or 0xfff41000. Unforunately, we do not know which one is used on each bootup, thus the attack may fail from time to time.
 
 You can edit the `simulate_rowhammer.sh` script:
 <!-- First zero out the last 20 bit of IOVA(GPU view) and set it to IOVA_BASE.   -->
@@ -275,20 +275,20 @@ sudo bash ./simulate_rowhammer.sh
 Now you are ready to move on to Step 4.
 
 
-#### Case 2: If you want to do the end-to-end exploit
+##### Case 2: If you want to do the end-to-end exploit
 
 First execute the GPUBreach program design for CPU-side exploit:
 ```bash
 python3 gpubreach.py app_cpu_exploit --n_step1 24109 --n_step3 24070 -t 0.2 -s 15
 ```
 
-When corruption is successful, the program will pause and you will see text like so:
+When corruption is successful, the program will pause and you will see the following text:
 ```text
 (Stable Primitive Ready) Start mem_operator now. It should load its page with 0x6464646464646464.
 Press Enter Key to start finding and modifying that page's PTE.
 ```
 
-As instructed, on another terminal, you will execute:
+On another terminal, please execute:
 ```bash
 ./mem-operator/mem-operator ./d_pattern.bin
 ```
