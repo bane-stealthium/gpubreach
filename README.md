@@ -58,7 +58,7 @@ cd gpubreach
 
 ## 2. NVIDIA Driver Setup
 
-Our profiling results require the set of tools developed in the [`gpu-tlb`](https://github.com/0x5ec1ab/gpu-tlb.git) repository. A version of this is included in our artifact. Patching the NVIDIA driver with the modifications from `gpu-tlb` works as follows: (this step can be skipped for AE, as we have the patched driver set up on our local GPU)
+Our profiling results require the set of tools developed in the [`gpu-tlb`](https://github.com/0x5ec1ab/gpu-tlb.git) repository. This is included in our artifact. Patching the NVIDIA driver with the modifications from `gpu-tlb` works as follows: (this step can be skipped for AE, as we have the patched driver set up on our local GPU)
 
 ```bash
 cd gpubreach
@@ -81,11 +81,11 @@ Now use the installer to install the driver. Please select **MIT/GPL** installat
 sudo ./nvidia-installer
 ```
 
-Afterward, run these to make the `gpu-tlb` dumper.
+Afterward, run these to make the relevant dumpers.
 
 ```bash
-cd ../gpu-tlb/dumper && make
-cd ../extractor && make
+cd ../ # gpubreach
+bash run_make_dumpers.sh
 ```
 
 ## 3. GPU Setup
