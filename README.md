@@ -242,7 +242,7 @@ This `mem-operator` will:
 - Fill it with the pattern from Step 1
 - Open an interactive command prompt for later steps
 
-<!-- **Wait until a '>' appears, indicating that the prompt is ready, and keep this terminal open** - you will need it in the step of executing privilege escalation. -->
+<!-- **Wait until a '>' appears, indicating that the interactive command prompt is ready, and keep this terminal open** - you will need it in the step of executing privilege escalation. -->
 
 **Wait until a '>' appears, indicating that the prompt is ready.**
 
