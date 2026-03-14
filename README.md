@@ -333,7 +333,7 @@ The effective UID of 0 indicates successful privilege escalation to root.
 
 If the Effective UID is not 0, the exploit has failed. You can try to execute `poc-trigger 5` again. **If still unsuccessful, you may need to reboot the machine using out-of-band methods and restart the exploit.**
 
-### 6.5 Spawn root shell
+#### Step 6 Spawn root shell
 
 If the previous step has succeeded, use the `fork` command to spawn a root shell:
 
