@@ -258,17 +258,10 @@ If you just want to verify the exploit without running the GPU RowHammer part (C
 
 ##### Case 1: If you want to just verify the CPU-side privilege escalation
 
+Note that the GPU's IOVA value is stable across runnings and machines, always 0xffe41000 or 0xfff41000. Unforunately, we do not know which one is used on each bootup, thus the attack may fail from time to time.
 
-- Check dmesg for the IOVA values.
-
-```bash
-$ sudo dmesg | grep "IOVA (GPU view)"  # for GPU’s IOVA
-```
-
-Note that this value is stable across runnings and machines, always 0xffe41000 or 0xfff41000.
-
-Then edit the simulate_rowhammer.sh script:
-First zero out the last 20 bit of IOVA(GPU view) and set it to IOVA_BASE.  
+You can edit the `simulate_rowhammer.sh` script:
+<!-- First zero out the last 20 bit of IOVA(GPU view) and set it to IOVA_BASE.   -->
 
 e.g.  `IOVA_BASE="0xfff00000"` or `IOVA_BASE="0xffe00000"`.
 Then run the script to simulate rowhammer behaviour using sudo. 
