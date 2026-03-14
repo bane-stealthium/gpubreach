@@ -177,7 +177,7 @@ GPU privilege escalation is successful if the results in `results/gpubreach_demo
 
 ### 3. CPU Privilege Escalation (Section 6.4)
 
-This step achieves an arbitrary write primitive from user space to the CPU's kernel memory, assuming IOMMU protection is enabled. The attacker tampers with the metadata in the CPU-side DMA region, causes a buffer overflow in the GPU driver, and overwrites the adjacent buffer protected by the IOMMU. Then, the attacker uses the arbitrary write primitive in the kernel space to overwrite the `euid` of the current process to 0, and spawns a root shell.
+This step achieves an arbitrary write primitive from user space to the CPU's kernel memory, assuming IOMMU protection is enabled. The attacker tampers with the metadata in the CPU-side memory via DMA from the GPU-side (region permitted for access by the IOMMU). This metadata is consumed by the GPU driver, which causes a buffer overflow in the GPU driver, that overwrites an adjacent buffer that contains kernel memory pointers. This results in an arbitrary write primitive inside the entire kernel memory: the attacker uses the arbitrary write primitive in the kernel space to overwrite the `euid` of the current process to 0, and thus spawns a root shell.
 
 Our evaluation has the following CPU-side configuration:
 
