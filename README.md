@@ -217,7 +217,7 @@ $ sudo insmod get_cred_addr.ko
 
 #### Step 1: Generate Memory Pattern
 
-Create a 1GB pattern file that will be used to fill GPU memory:
+Create a 1GB pattern file that will be used to fill GPU memory. The data pattern is used as identifing information for virtual pages, telling us which page have been remapped to point to the desired IOVA region.
 
 ```bash
 $ cd d2h-tools/ # at gpubreach/
@@ -271,8 +271,9 @@ cd d2h-tools/gpu_mem_dumper/scripts/
 sudo bash ./simulate_rowhammer.sh
 ``` 
 
----
 Now you are ready to move on to Step 4.
+
+---
 
 
 ##### Case 2: If you want to do the end-to-end exploit
@@ -356,7 +357,15 @@ You now have a root shell while starting as a regular user.
 
 ### Debugging Tips
 
-1. After out-of-band restart, due to voltage changes, we notice bit-flips will disappear for a while. Whenever a restart happend, run the following to check for bit-flip:
+1. As we corrupt the driver during artifact evaluation, the machine may become unstable or crash without the possibility for automatic restart. When this happens, we provide a out-of-band restart option. SSH into syslab and run the power cycle command.
+
+    ```bash
+    ssh eval2026@syslab.cs.toronto.edu
+
+    bash power_cycle_dolphin.sh
+    ```
+
+2. After out-of-band restart, due to voltage changes, we notice bit-flips will disappear for a while. Whenever a restart happend, run the following to check for bit-flip:
 
    ```bash
    cd gpubreach
