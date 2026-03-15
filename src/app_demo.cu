@@ -77,7 +77,7 @@ main (int argc, char *argv[])
   void* pt_rw_orig_ptr = nullptr;
 
   const uint64_t null_pte =(uint64_t)(0x0600000000000001);
-  const uint64_t mask_2MB_pte =        0xFF000000000FFFFULL;
+  const uint64_t mask_2MB_pte =       0xFF0000000000FFFFULL;
   cudaMemcpyArray(data_device_ptr, corrupted_ptr, 64L * 1024);
   // paused();
 
