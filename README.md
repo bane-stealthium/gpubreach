@@ -14,7 +14,7 @@ University of Toronto
 In this artifact, we aim to reproduce the following:
 1. PT Massaging Primitives (Figure 5, 7, 8, and 10)
 
-2. GPU Privilege Escalation - Arbitrary Read & Write Capabilities with GPUBreach
+2. GPU Privilege Escalation - Arbitrary Read & Write Capabilities with GPUBreach (cuPQC exploit, Table 3)
 
 3. CPU Privilege Escalation - End-to-End GPU-CPU Exploit (Interactive)
 
@@ -112,6 +112,20 @@ bash gpuhammer/util/init_cuda.sh 1800 7600
 
 These changes can be undone with `bash gpuhammer/util/reset_cuda.sh`.
 
+### 3. Download ImageNet Validation Dataset
+
+Our artifact requires the ImageNet 2012 Validation Dataset, which is available from the official ImageNet website. Please note that downloading requires a (free) ImageNet account — please register at https://www.image-net.org/download-images.php before proceeding.
+
+We require the "Validation images (all tasks)" under Images when inside the ImageNet 2012 DataSet webpage. Please obtain the download link and download it **to the repository root** as follows:
+
+```bash
+# Make sure you are downloading the file into the repository root directory
+cd gpubreach
+wget <download link>
+```
+
+The downloaded file's name should be `ILSVRC2012_img_val.tar`.
+
 ## 4. Run Artifacts
 
 Run the following commands to setup environment variables, install dependencies, and build GPUBreach. 
@@ -123,18 +137,22 @@ cd gpubreach
 source ./init_env.sh
 ```
 
+Afterwards, run:
+```bash
+bash ./run_auto_artifacts.sh
+```
+
+`./run_auto_artifacts.sh` runs the parts of the artifact that can be done _non-interactively_. This includes the PT Region Massaging Experiments (Fig 5, 7, 8, 10) and the demonstration of GPU-side privilege escalation in Section 6.1 - 6.3. We use one of the bit flips already discovered in Table-2 (A1) for all these attacks for ease of reproducibility.
+
 ### 1. PT Massaging Primitives (Figures 5, 7, 8, 10)
 
-`./run_auto_artifacts.sh` runs the parts of the artifact that can be done _non-interactively_. This includes the PT Region Massaging Experiments (Fig 5, 7, 8, 10) and the demonstration of GPU-side privilege escalation, a core component of Exploits in Section 6.1 - 6.3. We use one of the bit flips already discovered in Table-2 (A1) for all these attacks for ease of reproducibility.
-
-This command will run the following steps to generate the results for PT Massaging Primitives.
+For PT Massaging Primitives, `./run_auto_artifacts.sh` will run the following steps to generate the results:
 
 ```bash
 bash run_fig5.sh #(~ 30 minutes) ; Page types used with different allocation sizes.
 bash run_fig7.sh # (< 1 minutes) ; UVM eviction side-channel to identify when memory is full
 bash run_fig8.sh #(< 1 minutes)  ; UVM eviction side-channel when PT region is allocated with the memory
 bash run_fig10.sh #(< 1 minutes) ; UVM eviction side-channel using 4KB Pages
-bash run_gpubreach_demo.sh #(< 5 minutes) ; It runs the exploit and reads/modifies another process's data from the GPU memory
 ```
 
 and the results will be stored in `results/`. 
@@ -161,21 +179,41 @@ Reproduced with `bash run_fig10.sh`. The result is reproduced successfully if th
 
 ### 2. GPU Privilege Escalation (Sections 6.1-6.3)
 
-`./run_auto_artifacts.sh` already runs the parts of the artifact to demonstrate the GPU-side privilege escalation, a core component of Exploits in Section 6.1. We use one of the bit flips already discovered in Table-2 (A1) for all these attacks for ease of reproducibility.
+`./run_auto_artifacts.sh` also runs the parts of the artifact to demonstrate the GPU-side privilege escalation, a core component of Exploits in Section 6.1. We use one of the bit flips already discovered in Table-2 (A1) for all these attacks for ease of reproducibility.
 
 ```bash
 bash run_gpubreach_demo.sh #(< 5 minutes) ; It runs the exploit and reads/modifies another process's data from the GPU memory
 ## the privilege escalation takes ~17 seconds, rest of the time is spent by the memory dumping for the demonstration.
+bash run_cupqc_exploit.sh  #(< 1 hour) ; It runs the exploit, then locates the memory used by victim cuPQC kernels and extracts the secret keys.
+bash run_ml_exploit.sh #(< 10 minutes) ; It runs the exploit, then modifies a cuBLAS branch through the known vulnerable cuBLAS SASS template, which degrades the model accuracy yet not hurting performance.
 ```
 
+> There is a very low probability of the exploit chain crashing the attacker program, in which case you can simply re-run `bash run_gpubreach.sh` when everything is killed or if necessary, reboot or power cycle in [Debugging Tips](#debugging-tips).
+
+##### GPUBreach Demo (Section 6.1)
 With `bash run_gpubreach_demo.sh`, the GPUBreach exploit chain runs automatically on our GPU and achieves GPU privilege-escalation, gaining arbitrary read/write privilege on GPU memory. These privliieges are demonstrated by showing we can read and modify another program's data in the GPU memory. Once this is achieved, exploits in Section 6.2 and 6.3 can be executed trivially.  
 
 In this demonstration, a victim program from `./data_scripts/gpubreach_demo/sample_app.cu` is run and its memory is initialized to **0xdeadbeefabcdabcd**.
 
 GPU privilege escalation is successful if the results in `results/gpubreach_demo/memdump.txt` show that the memory dumped by GPUBreach contains  **0xdeadbeefabcdabcd** , and the `results/gpubreach_demo/app.out` shows "Modified. Exiting" which indicate this memory was also modified by GPUBreach.
 
-> There is a very low probability of the exploit chain crashing the attacker program, in which case you can simply re-run `bash run_gpubreach.sh` or if necessary, reboot or power cycle in [Debugging Tips](#debugging-tips).
+##### cuPQC exploit (Section 6.2)
 
+With `bash run_cupqc_exploit.sh`, after GPU privilege-escalation, the attacker attempts to locate memory used by the victim by exploiting the cudaFree/Alloc() memory freeing behaviour. Then, it will rapidly dump out the candidate victim pages found, looking for secret keys.
+
+In this demonstration, a victim program from `./data_scripts/cupqc_exploit/keyexchange_victim.cu` is ran repeatedly every 2 seconds, simulating communication scenarios. The attacker will repeatedly try each candidate page and dump the content.
+
+The attack is successful if the results in `results/gpubreach_demo/cupqc.txt` show that one of the candidate page was dumpped successfully, and at the end it should show an instance of the successful dump with expected and found secret key value. 
+
+> This attack is a revised improvement from the one mentioned on paper that is more stable.
+
+##### ML Degradation exploit (Section 6.3)
+
+With `bash run_ml_exploit.sh`, after GPU privilege-escalation, the attacker utilizes looks for a known vulberable cuBLAS template in GPU memory and corrupts the vulnerable branch.
+
+In this demonstration, a victim program from `./data_scripts/ml_exploit/run_imagenet_models.py` is ran. Once the pytorch cuBLAS code is present, the attacker will corrupt the branch during its idle time and degrade its performance.
+
+The attack is successful if the results in `results/gpubreach_demo/t3.txt` show similar degradation and performance impact as in the paper's Table 3.
 
 ### 3. CPU Privilege Escalation (Section 6.4)
 

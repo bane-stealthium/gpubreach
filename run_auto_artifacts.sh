@@ -47,10 +47,10 @@ echo "###########################################"
 echo "[INFO] 3. Running Artifacts"
 echo "###########################################"
 
-bash run_fig5.sh
-bash run_fig7.sh
-bash run_fig8.sh
-bash run_fig10.sh
-bash run_gpubreach_demo.sh
+# bash run_fig5.sh
+# bash run_fig7.sh
+# bash run_fig8.sh
+# bash run_fig10.sh
+# bash run_gpubreach_demo.sh
 bash run_cupqc_exploit.sh
-bash run_ml_exploit.sh
+# bash run_ml_exploit.sh

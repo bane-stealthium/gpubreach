@@ -187,7 +187,7 @@ main (int argc, char *argv[])
 
   std::cout << "(Stable Primitive Ready) Starting another program"
               << '\n';
-  std::system("nohup ./data_scripts/gpubreach_demo/app > ./results/gpubreach_demo/app_out.out 2>&1 &");
+  std::system("nohup ./data_scripts/gpubreach_demo/app > ./results/gpubreach_demo/app.out 2>&1 &");
   
   
   it_ptr = (uint64_t)(0x600000000000001);
