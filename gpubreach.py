@@ -2,6 +2,12 @@
 
 import argparse
 import subprocess
+import os
+
+BREACH_ROOT = os.getenv("BREACH_ROOT")
+if BREACH_ROOT is None:
+    print("BREACH_ROOT not set")
+    exit(1)
 
 def arg_2_setup(subparsers, func):
     parser = subparsers.add_parser(
@@ -87,6 +93,45 @@ def arg_4_setup(subparsers, name, help, func):
     parser.set_defaults(func=func)
 
 
+
+def arg_5_setup(subparsers, name, help, func):
+    parser = subparsers.add_parser(
+        name,
+        help=help,
+    )
+    parser.add_argument(
+        "--n_step1",
+        type=int,
+        help="Numer of 2MB allocations in step 1 that will fill the GPU memory to full."
+    )
+    parser.add_argument(
+        "--n_step3",
+        type=int,
+        help="Numer of 2MB allocations before step 3 that re-fills the GPU memory with dense PT regions."
+    )
+    parser.add_argument(
+        "-t", "--threshold",
+        type=float,
+        help="Timing side-channel threshold that is considered as an eviction."
+    )
+    parser.add_argument(
+        "-s", "--skip",
+        type=int,
+        help="Skip a specified amount of measurements, as the first few can be slow from GPU warmup."
+    )
+    parser.add_argument(
+        "-a", "--app_cmd",
+        type=str,
+        help="Command to execute the attacker code."
+    )
+    parser.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="Print out debug information like timing or relevant addresses"
+    )
+    parser.set_defaults(func=func)
+
+
 def run_command(command):
     print("Running: " + command)
     p = subprocess.Popen(command, shell=True)
@@ -94,17 +139,21 @@ def run_command(command):
 
 
 def all_mem_test(args):
-   run_command(f"BREACH_DEBUG={1 if args.verbose else 0} ./src/out/gpubreach_main {args.command} {args.threshold} {args.skip}")
+   run_command(f"BREACH_DEBUG={1 if args.verbose else 0} {BREACH_ROOT}/src/out/gpubreach_main {args.command} {args.threshold} {args.skip}")
 
 
 def arg3_tasks(args):
-    run_command(f"BREACH_DEBUG={1 if args.verbose else 0} ./src/out/gpubreach_main {args.command} {args.n_step1} {args.threshold} {args.skip}")
+    run_command(f"BREACH_DEBUG={1 if args.verbose else 0} {BREACH_ROOT}/src/out/gpubreach_main {args.command} {args.n_step1} {args.threshold} {args.skip}")
 
 def arg4_tasks(args):
-    run_command(f"BREACH_DEBUG={1 if args.verbose else 0} ./src/out/gpubreach_main {args.command} {args.n_step1} {args.n_step3} {args.threshold} {args.skip}")
+    run_command(f"BREACH_DEBUG={1 if args.verbose else 0} {BREACH_ROOT}/src/out/gpubreach_main {args.command} {args.n_step1} {args.n_step3} {args.threshold} {args.skip}")
 
 def arg4_tasks_app(args):
-    run_command(f"BREACH_DEBUG={1 if args.verbose else 0} ./src/out/{args.command} {args.n_step1} {args.n_step3} {args.threshold} {args.skip}")
+    run_command(f"BREACH_DEBUG={1 if args.verbose else 0} {BREACH_ROOT}/src/out/{args.command} {args.n_step1} {args.n_step3} {args.threshold} {args.skip}")
+
+def arg5_tasks_app(args):
+    run_command(f"BREACH_DEBUG={1 if args.verbose else 0} {BREACH_ROOT}/src/out/{args.command} {args.n_step1} {args.n_step3} {args.threshold} {args.skip} '{args.app_cmd}'")
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -136,13 +185,13 @@ def main():
         arg_4_setup(subparsers, name, help, arg4_tasks)
 
     task_tuple = [
-        ("app_cpu_exploit", "Command line interface for transferring arbitrary RW primitive to another process through IPC"),
+        ("app_cpu_exploit", "Modify the CPU exploit's virtual-to-physical mapping"),
         ("app_demo", "Demo using GPUBreach, dumping and changing other process' memory."),
     ]
     for name, help in task_tuple:
         arg_4_setup(subparsers, name, help, arg4_tasks_app)
     
-    
+    arg_5_setup(subparsers, "app_transfer", "Provide another process arbitrary RW primitives.", arg5_tasks_app)
     args = parser.parse_args()
 
     # Dispatch to the selected task

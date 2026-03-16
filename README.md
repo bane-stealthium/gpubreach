@@ -116,6 +116,8 @@ These changes can be undone with `bash gpuhammer/util/reset_cuda.sh`.
 
 Run the following commands to setup environment variables, install dependencies, and build GPUBreach. 
 
+**Important: You should either run `source ./init_env.sh` for every terminal or add the exports to `.bashrc`.**
+
 ```bash
 cd gpubreach
 source ./init_env.sh
@@ -172,7 +174,7 @@ In this demonstration, a victim program from `./data_scripts/gpubreach_demo/samp
 
 GPU privilege escalation is successful if the results in `results/gpubreach_demo/memdump.txt` show that the memory dumped by GPUBreach contains  **0xdeadbeefabcdabcd** , and the `results/gpubreach_demo/app.out` shows "Modified. Exiting" which indicate this memory was also modified by GPUBreach.
 
-> There is a very low probability of the exploit chain crashing the attacker program, in which case you can simply re-run `bash run_gpubreach.sh `
+> There is a very low probability of the exploit chain crashing the attacker program, in which case you can simply re-run `bash run_gpubreach.sh` or if necessary, reboot or power cycle in [Debugging Tips](#debugging-tips).
 
 
 ### 3. CPU Privilege Escalation (Section 6.4)

@@ -16,5 +16,5 @@ sleep 3
 echo "-------------------------------------------"
 echo ""
 echo "###########################################"
-echo "[INFO] Result stored in results/gpubreach_demo."
+echo "[INFO] Result stored in results/gpubreach_demo"
 echo "###########################################"
