@@ -21,12 +21,12 @@ cd out && make
 
 cd $BREACH_ROOT
 
-if [ ! -e "./cupqc_exploit/cupqc-sdk-0.4.0-x86_64" ]; then
-    cd ./cupqc_exploit
+if [ ! -e "$BREACH_ROOT/data_scripts/cupqc_exploit/cupqc-sdk-0.4.0-x86_64" ]; then
+    cd $BREACH_ROOT/data_scripts/cupqc_exploit
     wget https://developer.nvidia.com/downloads/compute/cupqc/downloads/secure/cupqc-sdk-0.4.0-x86_64.tar.gz
     tar -xvzf cupqc-sdk-0.4.0-x86_64.tar.gz
     rm cupqc-sdk-0.4.0-x86_64.tar.gz
-    cd ..
+    cd $BREACH_ROOT
 fi
 
 if [ ! -e "$BREACH_ROOT/ILSVRC2012_img_val.tar" ]; then
@@ -47,10 +47,10 @@ echo "###########################################"
 echo "[INFO] 3. Running Artifacts"
 echo "###########################################"
 
-bash run_fig5.sh
-bash run_fig7.sh
-bash run_fig8.sh
-bash run_fig10.sh
-bash run_gpubreach_demo.sh
-# bash run_cupqc_exploit.sh
+# bash run_fig5.sh
+# bash run_fig7.sh
+# bash run_fig8.sh
+# bash run_fig10.sh
+# bash run_gpubreach_demo.sh
+bash run_cupqc_exploit.sh
 # bash run_ml_exploit.sh
