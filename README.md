@@ -168,7 +168,7 @@ Reproduced with `bash run_fig5.sh`. It iteratively tries different allocation si
 
 ##### Figure 7
 
-Reproduced with `bash run_fig7.sh`. The result is reproduced successfully if the output pdf show timing spikes of ~0.2ms after ~24000 allocations, using `./results/sample/fig7.pdf` as reference. The timing may look slightly different than on our paper due to a different driving being used.
+Reproduced with `bash run_fig7.sh`. The result is reproduced successfully if the output pdf show timing spikes of ~0.2ms after ~24000 allocations, using `./results/sample/fig7.pdf` as reference. The timing may look slightly different than our paper due to a more recent driver used for our artifact.
 
 ##### Figure 8
 
