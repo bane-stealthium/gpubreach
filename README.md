@@ -280,7 +280,7 @@ python3 gpubreach.py app_cpu_exploit --n_step1 24109 --n_step3 24070 -t 0.2 -s 1
 
 When corruption is successful, the program will pause and you will see the following text:
 ```text
-(Stable Primitive Ready) Start mem_operator now. It should load its page with 0x6464646464646464.
+(Stable Primitive Ready) Start cpu-exploit now. It should load its page with 0x6464646464646464.
 Press Enter Key to start finding and modifying that page's PTE.
 ```
 
