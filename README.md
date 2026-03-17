@@ -194,7 +194,7 @@ bash run_ml_exploit.sh #(< 10 minutes) ; It runs the exploit, then modifies a cu
 
 > There is a very low probability of the exploit chain crashing the attacker program, in which case you can simply re-run `bash run_gpubreach.sh` when everything is killed or if necessary, reboot or power cycle in [Debugging Tips](#debugging-tips).
 
-##### Table 2 (Section 6.1)
+#### Table 2 (Section 6.1)
 With `bash run_t1.sh`, we ran GPUHammer to reproduce the bit-flips in Table 2. All of these are at appropriate locations suitable for our GPU page table tampering.
 
 Table 2 is generated successfully if the results in `results/t2/t2.txt` overlap with Table 2 in the paper. Note that sometimes not all flips may be reproduced due to the temporal randomness of Rowhammer.
