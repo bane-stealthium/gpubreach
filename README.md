@@ -88,7 +88,9 @@ cd ../ # goes back to gpubreach
 bash run_make_dumpers.sh
 ```
 
-## 3. GPU Setup
+## 3. GPU Setup and Software Pre-Requisites
+
+#### GPU Setup
 
 For the Rowhammer attack, a prerequiste is having **ECC disabled**. We observe that this is the default setting on A6000 GPUs on many cloud providers. But if it is enabled, use the following commands to disable it (we have already set this up on our local GPU, so you can skip this step for AE):
 
@@ -113,7 +115,7 @@ bash gpuhammer/util/init_cuda.sh 1800 7600
 
 These changes can be undone with `bash gpuhammer/util/reset_cuda.sh`.
 
-### 3. Download ImageNet Validation Dataset
+#### Download ImageNet Validation Dataset
 
 Our artifact requires the ImageNet 2012 Validation Dataset, which is available from the official ImageNet website. Please note that downloading requires a (free) ImageNet account — please register at https://www.image-net.org/download-images.php before proceeding.
 
