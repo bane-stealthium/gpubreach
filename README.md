@@ -75,7 +75,7 @@ cd NVIDIA-Linux-x86_64-580.95.05/
 patch -p1 < ../gpu-tlb/dumper/patch/driver-570.133.07.patch
 ```
 
-Now use the installer to install the driver. Please select **MIT/GPL** installation.
+Now use the installer to install the driver. Please select **MIT/GPL** installation and choose just the default options.
 
 ```bash
 sudo ./nvidia-installer
@@ -93,6 +93,7 @@ bash run_make_dumpers.sh
 For the Rowhammer attack, a prerequiste is having **ECC disabled**. We observe that this is the default setting on A6000 GPUs on many cloud providers. But if it is enabled, use the following commands to disable it (we have already set this up on our local GPU, so you can skip this step for AE):
 
 ```bash
+# No need to do this for AE.
 sudo nvidia-smi -e 0
 rmmod nvidia_drm 
 rmmod nvidia_modeset
