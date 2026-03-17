@@ -12,7 +12,7 @@ University of Toronto
 ## Results Reproduced by this Artifact
 
 In this artifact, we aim to reproduce the following:
-1. PT Massaging Primitives (Figure 5, 7, 8, and 10)
+1. PT Massaging Primitives (Figures 5, 7, 8, and 10)
 
 2. GPU Privilege Escalation - Arbitrary Read & Write Capabilities with GPUBreach (Table 2, Sections 6.1 - 6.3, Table 3)
 
@@ -46,7 +46,7 @@ Our reference system:
 
 ## Steps for Artifact Evaluation
 
-<!-- **For Artifact Evaluation, jump directly to [Step 4 (Run Artifacts)](#4-run-artifacts), since we have already setup the environment (Steps 1 to 3).** -->
+<!-- **For Artifact Evaluation, jump directly to [Step 4 (Run Artifacts)](#4-run-artifacts), since we have already set up the environment (Steps 1 to 3).** -->
 
 ## 1. (Ignore if using Zenodo) Clone the Repository 
 
@@ -92,7 +92,7 @@ bash run_make_dumpers.sh
 
 #### GPU Setup
 
-For the Rowhammer attack, a prerequiste is having **ECC disabled**. We observe that this is the default setting on A6000 GPUs on many cloud providers. But if it is enabled, use the following commands to disable it (we have already set this up on our local GPU, so you can skip this step for AE):
+For the Rowhammer attack, a prerequisite is having **ECC disabled**. We observe that this is the default setting on A6000 GPUs on many cloud providers. But if it is enabled, use the following commands to disable it (we have already set this up on our local GPU, so you can skip this step for AE):
 
 ```bash
 # No need to do this for AE.
@@ -102,7 +102,7 @@ rmmod nvidia_modeset
 sudo reboot
 ```
 
-Our profiling is easier with the persistence mode enabled, and with fixed GPU and memory clock rates, although these are not pre-requisites. The following script performs the above actions:
+Our profiling is easier with the persistence mode enabled and with fixed GPU and memory clock rates, although these are not pre-requisites. The following script performs the above actions:
 
 ```bash
 # Example usage: 
@@ -131,7 +131,7 @@ The downloaded file's name should be `ILSVRC2012_img_val.tar`.
 
 ## 4. Run Artifacts
 
-Run the following commands to setup environment variables, install dependencies, and build GPUBreach. 
+Run the following commands to set up environment variables, install dependencies, and build GPUBreach. 
 
 **Important: You should either run `source ./init_env.sh` for every terminal or add the exports to `.bashrc`.**
 
@@ -166,30 +166,30 @@ and the results will be stored in `results/`.
 
 ##### Figure 5
 
-Reproduced with `bash run_fig5.sh`. It iteratively tries different allocation sizes and extract the data page sizes used with `gpu-tlb` dumper. The result is reproduced successfully if the output pdf have 4KB pages being used after 2MB, using `./results/sample/fig5.pdf` as reference.
+Reproduced with `bash run_fig5.sh`. It iteratively tries different allocation sizes and extracts the data page sizes used with `gpu-tlb` dumper. The result is reproduced successfully if the output PDF uses 4KB pages for allocations greater than 2MB, using `./results/sample/fig5.pdf` as a reference.
 
 ##### Figure 7
 
-Reproduced with `bash run_fig7.sh`. The result is reproduced successfully if the output pdf show timing spikes of ~0.2ms after ~24000 allocations, using `./results/sample/fig7.pdf` as reference. The timing may look slightly different than our paper due to a more recent driver used for our artifact.
+Reproduced with `bash run_fig7.sh`. The result is reproduced successfully if the output PDF shows timing spikes of ~0.2ms after ~24000 allocations, using `./results/sample/fig7.pdf` as a reference. The timing may look slightly different from our paper due to a more recent driver used for our artifact.
 
 ##### Figure 8
 
-Reproduced with `bash run_fig8.sh`. The result is reproduced successfully if the output pdf show a timing spike for leaving 2MB freed but none for leaving 4MB free, using `./results/sample/fig8.pdf` as reference.
+Reproduced with `bash run_fig8.sh`. The result is reproduced successfully if the output PDF shows a timing spike for leaving 2MB freed but none for leaving 4MB free, using `./results/sample/fig8.pdf` as reference.
 
 ##### Figure 10
 
-Reproduced with `bash run_fig10.sh`. The result is reproduced successfully if the output pdf shows consistent timing spikes every 508 allocations, using `./results/sample/fig10.pdf` as reference.
+Reproduced with `bash run_fig10.sh`. The result is reproduced successfully if the output PDF shows consistent timing spikes every 508 allocations, using `./results/sample/fig10.pdf` as a reference.
 
 ---
 
 ### 2. GPU Privilege Escalation (Sections 6.1-6.3)
 
-`./run_auto_artifacts.sh` also runs the parts of the artifact to demonstrate the GPU-side privilege escalation (Exploits in Section 6.1-6.3). It runs the scripts shown below, reproducing the known vulnerable bit flips (Table 2) and subsequently using one of the bit flips (A1 in Table-2) for subsequent experiments. 
+`./run_auto_artifacts.sh` also runs the parts of the artifact to demonstrate the GPU-side privilege escalation (Exploits in Section 6.1-6.3). It runs the scripts shown below, reproducing the known vulnerable bit flips (Table-2) and using one of the bit flips (A1 in Table-2) for subsequent experiments. 
 
 ```bash
 bash run_t2.sh # (< 10 minutes) ; It hammers the known vulnerable bitflip positions that we used in the paper, to reproduce Table 2.
 bash run_gpubreach_demo.sh #(< 5 minutes) ; It runs the exploit and reads/modifies another process's data from the GPU memory.
-## the privilege escalation takes ~17 seconds, rest of the time is spent by the memory dumping for the demonstration.
+## The privilege escalation takes ~17 seconds, the rest of the time is spent on memory dumping for the demonstration.
 bash run_cupqc_exploit.sh  #(< 1 hour) ; It runs the exploit, then locates the memory used by victim cuPQC kernels and extracts the secret keys.
 bash run_ml_exploit.sh #(< 10 minutes) ; It runs the exploit, then modifies a cuBLAS branch through the known vulnerable cuBLAS SASS template, which degrades the model accuracy universally.
 ```
@@ -202,15 +202,15 @@ With `bash run_t2.sh`, we ran GPUHammer to reproduce the bit-flips in Table 2. A
 Table 2 is generated successfully if the results in `results/t2/t2.txt` overlap with Table 2 in the paper. Note that sometimes not all flips may be reproduced due to the temporal randomness of Rowhammer.
 
 #### GPUBreach Demo (Section 6.1)
-With `bash run_gpubreach_demo.sh`, the GPUBreach exploit chain runs automatically on our GPU and achieves GPU privilege escalation, gaining arbitrary read/write privilege on GPU memory. These privileges are demonstrated by showing we can read and modify another program's data in the GPU memory. Once this is achieved, exploits in Section 6.2 and 6.3 can be executed.  
+With `bash run_gpubreach_demo.sh`, the GPUBreach exploit chain runs automatically on our GPU and achieves GPU privilege escalation, gaining arbitrary read/write privilege on GPU memory. These privileges are demonstrated by showing that we can read and modify another program's data in the GPU memory. Once this is achieved, exploits in Sections 6.2 and 6.3 can be executed.  
 
 In this demonstration, a victim program from `./data_scripts/gpubreach_demo/sample_app.cu` is run and its memory is initialized to **0xdeadbeefabcdabcd**.
 
-GPU privilege escalation is successful if the results in `results/gpubreach_demo/memdump.txt` show that the memory dumped by GPUBreach contains  **0xdeadbeefabcdabcd** , and the `results/gpubreach_demo/app.out` shows "Modified. Exiting" which indicate this memory was also modified by GPUBreach.
+GPU privilege escalation is successful if the results in `results/gpubreach_demo/memdump.txt` show that the memory dumped by GPUBreach contains  **0xdeadbeefabcdabcd**, and the `results/gpubreach_demo/app.out` shows "Modified. Exiting" which indicates this memory was also modified by GPUBreach.
 
 #### cuPQC exploit (Section 6.2)
 
-With `bash run_cupqc_exploit.sh`, after GPU privilege-escalation, the attacker attempts to locate memory used by the victim by exploiting the cudaFree/Alloc() memory freeing behaviour. Then, it will rapidly dump out the candidate victim pages found, looking for secret keys.
+With `bash run_cupqc_exploit.sh`, after GPU privilege-escalation, the attacker attempts to locate memory used by the victim by exploiting the cudaFree/Alloc() memory zeroing behaviour. Then, it will rapidly dump out the candidate victim pages found, looking for secret keys.
 
 In this demonstration, a victim program from `./data_scripts/cupqc_exploit/keyexchange_victim.cu` is run repeatedly every 2 seconds. Each time, the attacker probes each candidate page and dumps the content.
 
@@ -218,9 +218,9 @@ The attack is successful if the results in `results/cupqc_exploit/cupqc.txt` sho
 
 #### ML Degradation exploit (Section 6.3)
 
-With `bash run_ml_exploit.sh`, after GPU privilege-escalation, the attacker looks for a known vulberable cuBLAS template in GPU memory and corrupts the vulnerable branch.
+With `bash run_ml_exploit.sh`, after GPU privilege-escalation, the attacker looks for a known vulnerable cuBLAS template in GPU memory and corrupts the vulnerable branch.
 
-In this demonstration, a victim program from `./data_scripts/ml_exploit/run_imagenet_models.py` is run. Once the pytorch cuBLAS code is loaded into the GPU code segment, the attacker will corrupt the target branch during its idle time and result in universally degraded accuracy for all models.
+In this demonstration, a victim program from `./data_scripts/ml_exploit/run_imagenet_models.py` is run. Once the pytorch cuBLAS code is loaded into the GPU code segment, the attacker will corrupt the target branch during its idle time, resulting in universally degraded accuracy for all models.
 
 The attack is successful if the results in `results/ml_exploit/t3.txt` show similar degradation and performance impact as Table 3 in the paper.
 
@@ -259,16 +259,16 @@ NUMA:
 This step gets the address of the `cred` structure. This is based on the exploit's assumption that a process's `cred` data structure can be leaked via other side-channels.
 
 ```bash
-$ cd cred_mod/
+$ cd gpubreach/cred_mod/
 $ make
 $ sudo insmod get_cred_addr.ko
 ```
 **Build CPU-side exploit**
 
-Next, we build the CPU-side exploit components. We also generate a file `d_pattern.bin` containing a 1GB data pattern of repeating "0x64", that will be filled in the GPU memory. This is pattern is used to identify the PA for a VA we control, and the associated PTE, which we will eventually redirect to the IOVA region. 
+Next, we build the CPU-side exploit components. We also generate a file `d_pattern.bin` containing a 1GB data pattern of repeating "0x64", that will be filled in the GPU memory. This pattern is used to identify the PA for a VA we control, and the associated PTE, which we will eventually redirect to the IOVA region. 
 
 ```bash
-$ cd d2h-tools/ # at gpubreach/
+$ cd gpubreach/d2h-tools/
 $ ./create_d_pattern.py --size 1GB --output d_pattern.bin
 $ cd cpu-exploit/
 $ make -j
@@ -276,7 +276,7 @@ $ make -j
 ---
 
 #### Step 1: Perform GPUBreach
-This step will perform the GPU-side privilege escalation, find the candidate PTE of a VA we control to redirect the translation to point to a IOVA. 
+This step will perform the GPU-side privilege escalation, find the candidate PTE of a VA we control to redirect the translation to point to an IOVA. 
 
 **First, we execute the GPUBreach program designed for this exploit.**
 
@@ -285,17 +285,17 @@ $ cd gpubreach
 $ python3 gpubreach.py app_cpu_exploit --n_step1 24109 --n_step3 24070 -t 0.2 -s 15
 ```
 
-When corruption is successful, the program will pause and you will see the following text:
+When corruption is successful, the program will pause, and you will see the following text:
 ```text
 (Stable Primitive Ready) Start cpu-exploit now. It should load its page with 0x6464646464646464.
 Press Enter Key to start finding and modifying that page's PTE.
 ```
 
-**Next, we locate the PTE that we need to tamper to access the IOVA.**
+**Next, we locate the PTE that we need to tamper with to access the IOVA.**
 
-**On a second terminal**, please execute the following which first loads the attacker memory with `0x6464646464646464`:
+**On a second terminal**, please execute the following, which first loads the attacker memory with `0x6464646464646464`:
 ```bash
-$ cd ./d2h-tools
+$ cd gpubreach/d2h-tools
 $ ./cpu-exploit/cpu-exploit ./d_pattern.bin
 ```
 
@@ -317,15 +317,15 @@ In the command prompt that was opened using `./cpu-exploit` (second terminal abo
 
 ```bash
 > poc-init # Initializes the base of the buffer under operation by scanning the memory.
-> poc-cw-entry0-checksum # Scans the slots, discovers the current sequence numbers, and infers the next couple sequence numbers that will be used. It then generates a payload indicating that there are 16 more messages followed by it with the correct checksum and writes them to the next entries which the POC predicts the GPU Driver will consume.
-> poc-privesc  # Construct the 17 entry message that will overflow the buffer, and then overwrite the GSP's message queue in the driver.
+> poc-cw-entry0-checksum # Scans the slots, discovers the current sequence numbers, and infers the next couple of sequence numbers that will be used. It then generates a payload indicating that there are 16 more messages followed by it with the correct checksum and writes them to the next entries, which the POC predicts the GPU Driver will consume.
+> poc-privesc  # Construct the 17-entry message that will overflow the buffer, and then overwrite the GSP's message queue in the driver.
 > poc-trigger 5  # Executes nvidia-smi to trigger CPU-GPU communication. It prompts the driver to process a message, advance the message queue, and consume the attacker-provided malicious payload and escalate privileges.
 ```
 ---
 
 #### Step 3: Verify CPU privilege escalation
 
-You can now return go to the exploit's command prompt and check your privileges:
+You can now return to the exploit's command prompt and check your privileges:
 
 ```bash
 > whoami
@@ -374,7 +374,7 @@ To reproduce only the driver-side vulnerability and CPU privilege escalation, we
 
 In one terminal, we execute:
 ```bash
-$ cd d2h-tools
+$ cd gpubreach/d2h-tools
 $ ./cpu-exploit/cpu-exploit ./d_pattern.bin  # Run this command as-is as a regular user with GPU access (non-root).
 ```
 
@@ -392,7 +392,7 @@ Now you can go back to step 2 above.
 
 ### Debugging Tips
 
-1. As we corrupt the driver during artifact evaluation, the machine may become unstable or crash without the possibility for automatic restart. When this happens, we provide a out-of-band restart option. SSH into syslab and run the power cycle command.
+1. As we corrupt the driver during artifact evaluation, the machine may become unstable or crash without the possibility of automatic restart. When this happens, we provide an out-of-band restart option. SSH into syslab and run the power cycle command.
 
     ```bash
     ssh eval2026@syslab.cs.toronto.edu
@@ -400,13 +400,13 @@ Now you can go back to step 2 above.
     bash power_cycle_dolphin.sh
     ```
 
-2. After out-of-band restart, due to voltage changes, we notice bit-flips will disappear for a while. Whenever a restart happend, run the following to check for bit-flip:
+2. After an out-of-band restart, due to voltage changes, we notice bit-flips will disappear for a while. Whenever a restart happens, run the following to check for a bit-flip:
 
    ```bash
    cd gpubreach
 
-   source ./init_env.sh # Not needed if already ran before
+   source ./init_env.sh # Not needed if already run before
    bash run_regenerate_a1.sh
    ```
 
-   It will iteratively hammer and check whether bit-flip re-appeared. Unfortunately, when exactly it will re-appear is a bit variable (sometimes takes a few minutes). You may choose to wait a few hours before restarting the process. For the CPU-GPU exploit, you may also go to the [Alternative Step 1](#alternative-step-1-exploit-with-simulated-bit-flips), given we already demonstrated arbitrary RW.
+   It will iteratively hammer and check whether the bit-flip re-appeared. Unfortunately, when exactly it will reappear is a bit variable (sometimes it takes a few minutes). You may choose to wait a few hours before restarting the process. For the CPU-GPU exploit, you may also go to the [Alternative Step 1](#alternative-step-1-exploit-with-simulated-bit-flips), given that we already demonstrated arbitrary RW.
