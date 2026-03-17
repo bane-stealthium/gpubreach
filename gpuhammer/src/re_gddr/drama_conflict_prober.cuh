@@ -81,7 +81,7 @@ public:
    */
   template <typename FUNCTION>
   inline void
-  loop_range (FUNCTION &&f, uint64_t i = 23548764416)
+  loop_range (FUNCTION &&f, uint64_t i = 0)
   {
     for (; i < m_range; i += m_step)
       std::forward<FUNCTION> (f) (i);
@@ -99,7 +99,7 @@ public:
    */
   template <typename FUNCTION, typename COND>
   inline void
-  loop_range (FUNCTION &&f, COND &&cond, uint64_t i = 23548764416)
+  loop_range (FUNCTION &&f, COND &&cond, uint64_t i = 0)
   {
     for (; std::forward<COND> (cond) (i); i += m_step)
       std::forward<FUNCTION> (f) (i);

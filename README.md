@@ -14,7 +14,7 @@ University of Toronto
 In this artifact, we aim to reproduce the following:
 1. PT Massaging Primitives (Figure 5, 7, 8, and 10)
 
-2. GPU Privilege Escalation - Arbitrary Read & Write Capabilities with GPUBreach (cuPQC exploit, Table 3)
+2. GPU Privilege Escalation - Arbitrary Read & Write Capabilities with GPUBreach (Table 1, cuPQC exploit, Table 3)
 
 3. CPU Privilege Escalation - End-to-End GPU-CPU Exploit (Interactive)
 
@@ -182,6 +182,7 @@ Reproduced with `bash run_fig10.sh`. The result is reproduced successfully if th
 `./run_auto_artifacts.sh` also runs the parts of the artifact to demonstrate the GPU-side privilege escalation, a core component of Exploits in Section 6.1. We use one of the bit flips already discovered in Table-2 (A1) for all these attacks for ease of reproducibility.
 
 ```bash
+bash run_t1.sh # (< 10 minutes) ; It runs hammers the known vulnerable bitflip positions that we used in table 1.
 bash run_gpubreach_demo.sh #(< 5 minutes) ; It runs the exploit and reads/modifies another process's data from the GPU memory
 ## the privilege escalation takes ~17 seconds, rest of the time is spent by the memory dumping for the demonstration.
 bash run_cupqc_exploit.sh  #(< 1 hour) ; It runs the exploit, then locates the memory used by victim cuPQC kernels and extracts the secret keys.
@@ -189,6 +190,11 @@ bash run_ml_exploit.sh #(< 10 minutes) ; It runs the exploit, then modifies a cu
 ```
 
 > There is a very low probability of the exploit chain crashing the attacker program, in which case you can simply re-run `bash run_gpubreach.sh` when everything is killed or if necessary, reboot or power cycle in [Debugging Tips](#debugging-tips).
+
+##### Table 1 (Section 6.1)
+With `bash run_t1.sh`, we ran GPUHammer on the bit-flips in Table 1, which all fall into the valid jump distance for our GPU privilege escalation exploit.
+
+Table 1 is generated successfully if the results in `results/t1/t1.txt` match (partially) Table 1 in the paper. We cannot guarantee all flips will be reproduced due to the inherent randomness of Rowhammer.
 
 ##### GPUBreach Demo (Section 6.1)
 With `bash run_gpubreach_demo.sh`, the GPUBreach exploit chain runs automatically on our GPU and achieves GPU privilege-escalation, gaining arbitrary read/write privilege on GPU memory. These privliieges are demonstrated by showing we can read and modify another program's data in the GPU memory. Once this is achieved, exploits in Section 6.2 and 6.3 can be executed trivially.  

@@ -19,9 +19,9 @@ main (int argc, char *argv[])
 
   re_gddr::ConflictProber nc_test (2, size, range, it, step);
 
-  std::cin.clear();
-  int c;
-  while ((c = std::cin.get()) != '\n' && c != EOF);
+  // std::cin.clear();
+  // int c;
+  // while ((c = std::cin.get()) != '\n' && c != EOF);
 
   std::ofstream offset_file;
   offset_file.open (output_filename); /* Argument File name */
