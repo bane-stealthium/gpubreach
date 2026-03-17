@@ -187,7 +187,7 @@ Reproduced with `bash run_fig10.sh`. The result is reproduced successfully if th
 `./run_auto_artifacts.sh` also runs the parts of the artifact to demonstrate the GPU-side privilege escalation (Exploits in Section 6.1-6.3). It runs the scripts shown below, reproducing the known vulnerable bit flips (Table 2) and subsequently using one of the bit flips (A1 in Table-2) for subsequent experiments. 
 
 ```bash
-bash run_t1.sh # (< 10 minutes) ; It hammers the known vulnerable bitflip positions that we used in the paper, to reproduce Table 2.
+bash run_t2.sh # (< 10 minutes) ; It hammers the known vulnerable bitflip positions that we used in the paper, to reproduce Table 2.
 bash run_gpubreach_demo.sh #(< 5 minutes) ; It runs the exploit and reads/modifies another process's data from the GPU memory.
 ## the privilege escalation takes ~17 seconds, rest of the time is spent by the memory dumping for the demonstration.
 bash run_cupqc_exploit.sh  #(< 1 hour) ; It runs the exploit, then locates the memory used by victim cuPQC kernels and extracts the secret keys.
@@ -197,7 +197,7 @@ bash run_ml_exploit.sh #(< 10 minutes) ; It runs the exploit, then modifies a cu
 > There is a very low probability of the exploit chain crashing the attacker program, in which case you can simply re-run `bash run_gpubreach.sh` when everything is killed or if necessary, reboot or power cycle in [Debugging Tips](#debugging-tips).
 
 #### Table 2 (Section 6.1)
-With `bash run_t1.sh`, we ran GPUHammer to reproduce the bit-flips in Table 2. All of these are at appropriate locations suitable for our GPU page table tampering.
+With `bash run_t2.sh`, we ran GPUHammer to reproduce the bit-flips in Table 2. All of these are at appropriate locations suitable for our GPU page table tampering.
 
 Table 2 is generated successfully if the results in `results/t2/t2.txt` overlap with Table 2 in the paper. Note that sometimes not all flips may be reproduced due to the temporal randomness of Rowhammer.
 
