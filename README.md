@@ -318,9 +318,10 @@ In the command prompt that was opened using `./cpu-exploit` (second terminal abo
 ```bash
 > poc-init # Initializes the base of the buffer under operation by scanning the memory.
 > poc-cw-entry0-checksum # Scans the slots, discovers the current sequence numbers, and infers the next couple sequence numbers that will be used. It then generates a payload indicating that there are 16 more messages followed by it with the correct checksum and writes them to the next entries which the POC predicts the GPU Driver will consume.
-> poc-privesc  # Overwrites the last message in the GSP’s message queue.
+> poc-privesc  # Construct the 17 entry message that will overflow the buffer, and then overwrite the GSP's message queue in the driver.
 > poc-trigger 5  # Executes nvidia-smi to trigger CPU-GPU communication. It prompts the driver to process a message, advance the message queue, and consume the attacker-provided malicious payload and escalate privileges.
 ```
+---
 
 #### Step 3: Verify CPU privilege escalation
 
@@ -341,6 +342,8 @@ The effective UID of 0 indicates successful privilege escalation to root.
 
 If the Effective UID is not 0, the exploit has failed. You can try to execute `poc-trigger 5` again. **If still unsuccessful, you may need to reboot the machine using out-of-band methods and restart the exploit.**
 
+---
+
 #### Step 4: Spawn root shell
 
 If the previous step has succeeded, use the `fork` command to spawn a root shell:
@@ -360,6 +363,8 @@ uid=1000(user) gid=1000(user) euid=0(root) groups=1000(user),4(adm),24(cdrom),27
 ```
 
 You now have a root shell while starting as a regular user.
+
+---
 
 #### Alternative Step 1: Exploit with simulated bit flips
 
@@ -382,6 +387,8 @@ $ sudo bash ./simulate_rowhammer.sh
 ``` 
 
 Now you can go back to step 2 above.
+
+---
 
 ### Debugging Tips
 
