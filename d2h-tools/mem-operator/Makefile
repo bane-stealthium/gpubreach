@@ -7,17 +7,17 @@ NVCC_FLAGS += -Wno-deprecated-gpu-targets -Xcompiler -Wall
 
 .PHONY: all clean
 
-all: mem-operator
+all: cpu-exploit
 
-mem-operator: mem-operator.cu
+cpu-exploit: cpu-exploit.cu
 	$(NVCC) $(NVCC_FLAGS) -o $@ $< $(LIBS)
 
 clean:
-	rm -f mem-operator sample
+	rm -f cpu-exploit sample
 
 help:
 	@echo "Targets:"
 	@echo "  all"
-	@echo "  mem-operator"
+	@echo "  cpu-exploit"
 	@echo "  clean                       	Remove built binaries"
 	@echo "  help                        	Show this help"
