@@ -14,9 +14,9 @@ University of Toronto
 In this artifact, we aim to reproduce the following:
 1. PT Massaging Primitives (Figure 5, 7, 8, and 10)
 
-2. GPU Privilege Escalation - Arbitrary Read & Write Capabilities with GPUBreach (Table 1, cuPQC exploit, Table 3)
+2. GPU Privilege Escalation - Arbitrary Read & Write Capabilities with GPUBreach (Table 2, Sections 6.1 - 6.3, Table 3)
 
-3. CPU Privilege Escalation - End-to-End GPU-CPU Exploit (Interactive)
+3. CPU Privilege Escalation - End-to-End GPU-CPU Exploit (Section 6.4)
 
 All the results are automatically generated **except** the *CPU Privilege Exploit*, which has an interactive component (more details below).
 
