@@ -214,7 +214,7 @@ With `bash run_cupqc_exploit.sh`, after GPU privilege-escalation, the attacker a
 
 In this demonstration, a victim program from `./data_scripts/cupqc_exploit/keyexchange_victim.cu` is run repeatedly every 2 seconds. Each time, the attacker probes each candidate page and dumps the content.
 
-The attack is successful if the results in `results/gpubreach_demo/cupqc.txt` show that one of the candidate pages was dumped successfully with the expected secret key value. 
+The attack is successful if the results in `results/cupqc_exploit/cupqc.txt` show that one of the candidate pages was dumped successfully with the expected secret key value. 
 
 #### ML Degradation exploit (Section 6.3)
 
@@ -222,7 +222,7 @@ With `bash run_ml_exploit.sh`, after GPU privilege-escalation, the attacker look
 
 In this demonstration, a victim program from `./data_scripts/ml_exploit/run_imagenet_models.py` is run. Once the pytorch cuBLAS code is loaded into the GPU code segment, the attacker will corrupt the target branch during its idle time and result in universally degraded accuracy for all models.
 
-The attack is successful if the results in `results/gpubreach_demo/t3.txt` show similar degradation and performance impact as Table 3 in the paper.
+The attack is successful if the results in `results/ml_exploit/t3.txt` show similar degradation and performance impact as Table 3 in the paper.
 
 ---
 
@@ -270,7 +270,7 @@ Next, we build the CPU-side exploit components. We also generate a file `d_patte
 ```bash
 $ cd d2h-tools/ # at gpubreach/
 $ ./create_d_pattern.py --size 1GB --output d_pattern.bin
-$ cd cpu-exploit/ # at gpubreach/
+$ cd cpu-exploit/
 $ make -j
 ```
 ---
@@ -374,8 +374,8 @@ To reproduce only the driver-side vulnerability and CPU privilege escalation, we
 
 In one terminal, we execute:
 ```bash
-$ ./cpu-exploit/cpu-exploit ./d_pattern.bin  # Run this command as-is as a regular user with GPU access (non-root).
 $ cd d2h-tools
+$ ./cpu-exploit/cpu-exploit ./d_pattern.bin  # Run this command as-is as a regular user with GPU access (non-root).
 ```
 
 Instead of using GPUBreach, we will simulate the arbitrary RW with the `simulate_rowhammer.sh` script. Modify the `IOVA_BASE` in `simulate_rowhammer.sh` to `0xfff00000` or `0xffe00000`.
