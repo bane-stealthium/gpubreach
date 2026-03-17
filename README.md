@@ -147,6 +147,8 @@ bash ./run_auto_artifacts.sh
 
 `./run_auto_artifacts.sh` runs the parts of the artifact that can be done _non-interactively_. This includes the PT Region Massaging Experiments (Fig 5, 7, 8, 10) and the demonstration of GPU-side privilege escalation in Section 6.1 - 6.3. We use one of the bit flips already discovered in Table-2 (A1) for all these attacks for ease of reproducibility.
 
+---
+
 ### 1. PT Massaging Primitives (Figures 5, 7, 8, 10)
 
 For PT Massaging Primitives, `./run_auto_artifacts.sh` will run the following steps to generate the results:
@@ -178,7 +180,7 @@ Reproduced with `bash run_fig8.sh`. The result is reproduced successfully if the
 
 Reproduced with `bash run_fig10.sh`. The result is reproduced successfully if the output pdf shows consistent timing spikes every 508 allocations, using `./results/sample/fig10.pdf` as reference.
 
-
+---
 
 ### 2. GPU Privilege Escalation (Sections 6.1-6.3)
 
@@ -222,9 +224,11 @@ In this demonstration, a victim program from `./data_scripts/ml_exploit/run_imag
 
 The attack is successful if the results in `results/gpubreach_demo/t3.txt` show similar degradation and performance impact as Table 3 in the paper.
 
+---
+
 ### 3. CPU Privilege Escalation (Section 6.4)
 
-This step achieves an arbitrary write primitive from user space to the CPU's kernel memory, assuming IOMMU protection is enabled. The attacker tampers with the metadata in the CPU-side memory via DMA from the GPU-side (region permitted for access by the IOMMU). This metadata is consumed by the GPU driver, which causes a buffer overflow in the GPU driver, that overwrites an adjacent buffer that contains kernel memory pointers. This results in an arbitrary write primitive inside the entire kernel memory: the attacker uses the arbitrary write primitive in the kernel space to overwrite the `euid` of the current process to 0, and thus spawns a root shell.
+This exploit starts from the user space on the GPU and achieves an arbitrary write primitive to the CPU's kernel memory, assuming IOMMU protection is enabled. The attacker tampers with the GPU driver metadata in the CPU memory via DMA from the GPU (region permitted for access by the IOMMU). This tampered data, when consumed by the GPU driver, causes a buffer overflow that overwrites an adjacent buffer in the GPU driver containing kernel memory pointers. This results in an arbitrary write primitive inside the entire kernel memory: the attacker uses the arbitrary write primitive in the kernel space to overwrite the `euid` of the current process to 0, and thus spawns a root shell.
 
 Our evaluation has the following CPU-side configuration:
 
@@ -252,7 +256,7 @@ NUMA:
 
 ##### Build the CPU-side exploit and load the credential structure dumping module
 
-First, this step gets the address of the `cred` structure. This is based on the exploit's assumption that a process's `cred` data structure can be leaked via other side-channels.
+This step gets the address of the `cred` structure. This is based on the exploit's assumption that a process's `cred` data structure can be leaked via other side-channels.
 
 ```bash
 $ cd cred_mod/
