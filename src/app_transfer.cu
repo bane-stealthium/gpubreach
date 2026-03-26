@@ -167,7 +167,7 @@ main (int argc, char *argv[])
   DBG_OUT << "Arbitrary rw:" << *(void**)data_device_ptr << " Orig: "<< arb_rw_orig_ptr << '\n';
 
   std::cout << "(Stable Primitive Ready) Starting your app now. It should load the page for doing arbitrary RW with 0x6464646464646464,"
-              "and its page for modifing the arbitrary RW location with 0x4646464646464646."
+              "and its page for modifying the arbitrary RW location with 0x4646464646464646."
               << '\n';
   std::system(transfer_app_cmd.c_str());
   std::this_thread::sleep_for(std::chrono::seconds(2));
@@ -245,7 +245,7 @@ main (int argc, char *argv[])
         }
         if (transfer_mod_pt_phys != 0 && transfer_arb_pt_phys != 0)
         {
-          std::cout << "Found both, modifing them to their appropriate values...\n";
+          std::cout << "Found both, modifying them to their appropriate values...\n";
           break;
         }
 
