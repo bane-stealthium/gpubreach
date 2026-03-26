@@ -102,7 +102,7 @@ rmmod nvidia_modeset
 sudo reboot
 ```
 
-Our profiling is easier with the persistence mode enabled and with fixed GPU and memory clock rates, although these are not pre-requisites. The following script performs the above actions:
+Our profiling is easier with the persistence mode enabled and with fixed GPU and memory clock rates, although these are not prerequisites. The following script performs the above actions:
 
 ```bash
 # Example usage: 
@@ -210,7 +210,7 @@ GPU privilege escalation is successful if the results in `results/gpubreach_demo
 
 #### cuPQC exploit (Section 6.2)
 
-With `bash run_cupqc_exploit.sh`, after GPU privilege-escalation, the attacker attempts to locate memory used by the victim by exploiting the cudaFree/Alloc() memory zeroing behaviour. Then, it will rapidly dump out the candidate victim pages found, looking for secret keys.
+With `bash run_cupqc_exploit.sh`, after GPU privilege-escalation, the attacker attempts to locate memory used by the victim by exploiting the cudaFree/Alloc() memory-zeroing behaviour. Then, it will rapidly dump out the candidate victim pages found, looking for secret keys.
 
 In this demonstration, a victim program from `./data_scripts/cupqc_exploit/keyexchange_victim.cu` is run repeatedly every 2 seconds. Each time, the attacker probes each candidate page and dumps the content.
 
@@ -305,7 +305,7 @@ Found its PTE, modified your pointer's PTE to point to: 0x060000000fff0005
 Press Enter Key if you want to write 0x060000000ffe0005 instead.
 ```
 
-Note that the GPU's IOVA value is stable across runs and machines, always 0xffe41000 or 0xfff41000. Unforunately, we do not know which one is used on each bootup, so the attack may fail. Regardless, you may choose whether to write `0x060000000fff0005` or `0x060000000ffe0005` by following the instructions from the GPUBreach output.
+Note that the GPU's IOVA value is stable across runs and machines, always 0xffe41000 or 0xfff41000. Unfortunately, we do not know which one is used on each bootup, so the attack may fail. Regardless, you may choose whether to write `0x060000000fff0005` or `0x060000000ffe0005` by following the instructions from the GPUBreach output.
 
 Now you are ready to move on to Step 2.
 
