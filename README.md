@@ -194,7 +194,9 @@ bash run_cupqc_exploit.sh  #(< 1 hour) ; It runs the exploit, then locates the m
 bash run_ml_exploit.sh #(< 10 minutes) ; It runs the exploit, then modifies a cuBLAS branch through the known vulnerable cuBLAS SASS template, which degrades the model accuracy universally.
 ```
 
-> There is a very low probability of the exploit chain crashing the attacker program, in which case you can simply re-run `bash run_gpubreach.sh` when everything is killed or if necessary, reboot or power cycle in [Debugging Tips](#debugging-tips).
+> **Note 1:** Other than `run_t2.sh`, the other scripts spawns detached background processes, which needs to be killed manually if you decide to terminate the exploit scripts early.
+
+> **Note 2:** There is a very low probability of the exploit chains crashing the attacker program, in which case you can simply re-run the exploit bash script when everything is killed or if necessary, reboot or power cycle in [Debugging Tips](#debugging-tips).
 
 #### Table 2 (Section 6.1)
 With `bash run_t2.sh`, we ran GPUHammer to reproduce the bit-flips in Table 2. All of these are at appropriate locations suitable for our GPU page table tampering.
@@ -399,6 +401,7 @@ Now you can go back to step 2 above.
 
     bash power_cycle_dolphin.sh
     ```
+    `power_cycle_dolphin.sh` works by triggering a [Wiz Smart Plug](https://www.homehardware.ca/en/smart-plugs-2-pack/p/3619551) that powers our machine via [UDP](https://github.com/sbidy/pywizlight). We setup a static IP and opened the port from syslab.cs to the smartplug, which allows us to run this command when the target machine is in a corrupted state.
 
 2. After an out-of-band restart, due to voltage changes, we notice bit-flips will disappear for a while. Whenever a restart happens, run the following to check for a bit-flip:
 

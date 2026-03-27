@@ -95,7 +95,13 @@ hardcoded_rowhammer_bitflip_page (GPUBreachContext &ctx)
   const uint64_t num_rows = 31000;
   const uint64_t agg_pat = std::stoull ("0xAA", nullptr, 16);
 
-  std::ifstream row_set_file ("/home/rootuser/gpuhammer-reloaded/gpuhammer/"
+  const std::string BREACH_ROOT = std::string(std::getenv("BREACH_ROOT"));
+
+  if (BREACH_ROOT == std::string()) {
+      std::cout << "BREACH_ROOT is not set" << std::endl;
+      return 1;
+  }
+  std::ifstream row_set_file (BREACH_ROOT + "/gpuhammer/"
                               "results/row_sets/ROW_SET_A.txt");
   RowList rows = read_row_from_file (row_set_file, layout);
   row_set_file.close ();
