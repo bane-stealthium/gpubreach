@@ -57,6 +57,11 @@ def arg_3_setup(subparsers, name, help, func):
         action="store_true",
         help="Print out debug information like timing or relevant addresses"
     )
+    parser.add_argument(
+        "-c", "--config",
+        type=str,
+        help="Path to bit-flip config file"
+    )
     parser.set_defaults(func=func)
 
 
@@ -89,6 +94,11 @@ def arg_4_setup(subparsers, name, help, func):
         "-v", "--verbose",
         action="store_true",
         help="Print out debug information like timing or relevant addresses"
+    )
+    parser.add_argument(
+        "-c", "--config",
+        type=str,
+        help="Path to bit-flip config file"
     )
     parser.set_defaults(func=func)
 
@@ -129,6 +139,11 @@ def arg_5_setup(subparsers, name, help, func):
         action="store_true",
         help="Print out debug information like timing or relevant addresses"
     )
+    parser.add_argument(
+        "-c", "--config",
+        type=str,
+        help="Path to bit-flip config file"
+    )
     parser.set_defaults(func=func)
 
 
@@ -143,16 +158,16 @@ def all_mem_test(args):
 
 
 def arg3_tasks(args):
-    run_command(f"BREACH_DEBUG={1 if args.verbose else 0} {BREACH_ROOT}/src/out/gpubreach_main {args.command} {args.n_step1} {args.threshold} {args.skip}")
+    run_command(f"BREACH_DEBUG={1 if args.verbose else 0} {BREACH_ROOT}/src/out/gpubreach_main {args.command} {args.n_step1} {args.threshold} {args.skip} {args.config}")
 
 def arg4_tasks(args):
-    run_command(f"BREACH_DEBUG={1 if args.verbose else 0} {BREACH_ROOT}/src/out/gpubreach_main {args.command} {args.n_step1} {args.n_step3} {args.threshold} {args.skip}")
+    run_command(f"BREACH_DEBUG={1 if args.verbose else 0} {BREACH_ROOT}/src/out/gpubreach_main {args.command} {args.n_step1} {args.n_step3} {args.threshold} {args.skip} {args.config}")
 
 def arg4_tasks_app(args):
-    run_command(f"BREACH_DEBUG={1 if args.verbose else 0} {BREACH_ROOT}/src/out/{args.command} {args.n_step1} {args.n_step3} {args.threshold} {args.skip}")
+    run_command(f"BREACH_DEBUG={1 if args.verbose else 0} {BREACH_ROOT}/src/out/{args.command} {args.n_step1} {args.n_step3} {args.threshold} {args.skip} {args.config}")
 
 def arg5_tasks_app(args):
-    run_command(f"BREACH_DEBUG={1 if args.verbose else 0} {BREACH_ROOT}/src/out/{args.command} {args.n_step1} {args.n_step3} {args.threshold} {args.skip} '{args.app_cmd}'")
+    run_command(f"BREACH_DEBUG={1 if args.verbose else 0} {BREACH_ROOT}/src/out/{args.command} {args.n_step1} {args.n_step3} {args.threshold} {args.skip} {args.config} '{args.app_cmd}' ")
 
 
 def main():

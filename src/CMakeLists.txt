@@ -16,7 +16,7 @@ find_package(CUDA 12.8 REQUIRED)
 
 message(STATUS "NVCC path: ${CMAKE_CUDA_COMPILER}")
 
-add_library(gpubreach_lib ./s1_allocallmem.cu ./s2_firstRegion.cu ./s3_firstRegion_hammer.cu ./s4_secondRegion.cu ./include/gpubreach_util.cu)
+add_library(gpubreach_lib ./include/ini.cpp ./include/INIReader.cpp ./s1_allocallmem.cu ./s2_firstRegion.cu ./s3_firstRegion_hammer.cu ./s4_secondRegion.cu ./include/gpubreach_util.cu)
 
 add_library(hammer_lib ./include/rh_kernels.cu ./include/rh_utils.cu ./include/rh_impls.cu)
 target_link_libraries(hammer_lib PUBLIC Threads::Threads)

@@ -109,6 +109,7 @@ second_PT_region (int argc, char *argv[])
   const double threshold = std::stod (argv[2]);
   const uint64_t skip = std::stoull (argv[3]);
   GPUBreachContext ctx;
+  ctx.bitflip_config = GPUBreachContext::BitFlipConfig(argv[4]);
 
   second_PT_region (num_alloc_init, num_alloc_post_msg, threshold, skip, ctx);
   return ctx;

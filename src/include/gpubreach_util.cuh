@@ -38,6 +38,13 @@ struct GPUBreachContext {
         std::vector<uint8_t *> cudaMalloced_ptrs;
     };
     S4_ExploitComplete step4_data;
+
+    struct BitFlipConfig{
+        BitFlipConfig(){};
+        BitFlipConfig(const std::string& config_file);
+        uint64_t num_agg;
+    };
+    BitFlipConfig bitflip_config;
 };
 
 inline bool debug_enabled() {
