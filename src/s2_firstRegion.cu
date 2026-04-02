@@ -87,7 +87,7 @@ hardcoded_rowhammer_bitflip_page (GPUBreachContext &ctx)
   auto& agg_vec = ctx.step2_data.agg_vec;
   uint8_t *layout = (uint8_t *)alloc_ptrs[0];
 
-  const uint64_t num_agg = ctx.bitflip_config.num_agg;
+  const uint64_t num_agg = 24;
   const uint64_t step = 256;
   const uint64_t min_rowId = 30016 - 94;
   const uint64_t max_rowId = 30016 + 5;

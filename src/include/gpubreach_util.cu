@@ -5,13 +5,13 @@
 
 GPUBreachContext::BitFlipConfig::BitFlipConfig (const std::string& config_file)
 {
-    INIReader reader(config_file);
-    if (reader.ParseError() < 0) {
-        std::cout << "Can't load " + config_file + "\n";
-        exit(1);
-    }
+    // INIReader reader(config_file);
+    // if (reader.ParseError() < 0) {
+    //     std::cout << "Can't load " + config_file + "\n";
+    //     exit(1);
+    // }
 
-    num_agg = reader.GetUnsigned64("config", "num_agg", 0);
+    // num_agg = reader.GetUnsigned64("config", "num_agg", 0);
 }
 
 __global__ void initialize_memory(uint8_t *array, uint64_t size)
