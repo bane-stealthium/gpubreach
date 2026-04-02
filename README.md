@@ -321,7 +321,7 @@ In the command prompt that was opened using `./cpu-exploit` (second terminal abo
 > poc-init # Initializes the base of the buffer under operation by scanning the memory.
 > poc-cw-entry0-checksum # Scans the slots, discovers the current sequence numbers, and infers the next couple of sequence numbers that will be used. It then generates a payload indicating that there are 16 more messages followed by it with the correct checksum and writes them to the next entries, which the POC predicts the GPU Driver will consume.
 > poc-privesc  # Construct the 17-entry message that will overflow the buffer, and then overwrite the GSP's message queue in the driver.
-> poc-trigger 5  # Executes nvidia-smi to trigger CPU-GPU communication. It prompts the driver to process a message, advance the message queue, and consume the attacker-provided malicious payload and escalate privileges.
+> poc-trigger 1  # Start a thread that continuously sends GPU queries.
 ```
 ---
 
