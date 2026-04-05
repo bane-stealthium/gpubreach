@@ -101,6 +101,21 @@ std::vector<uint64_t> get_aggressors(RowList &rows, uint64_t row_id,
   return agg_vec;
 }
 
+std::vector<uint64_t> get_aggressors_dir(RowList &rows, uint64_t row_id,
+                                     uint64_t num_agg, uint64_t step, bool left)
+{
+  std::vector<uint64_t> agg_vec(num_agg);
+  std::generate(agg_vec.begin(), agg_vec.end(),
+                [value = row_id + (left ? step : -step), &step, &left]() mutable -> uint64_t
+                {
+                  value += left ? -step : step;
+                  return value;
+                });
+  if (left)
+    std::reverse(agg_vec.begin(), agg_vec.end());
+  return agg_vec;
+}
+
 /**
  * @brief Helper function to set all the target rows to pat
  *
@@ -214,7 +229,7 @@ void set_row(Row &row, uint8_t pat, uint64_t b_count)
   static int numThreads = std::get<1>(get_dim_from_size(b_count));
 
   for (const auto addr : row) {
-    set_address_kernel<<<numBlock, numThreads>>>(addr, pat, b_count);
+    set_address_kernel<<<1, 1>>>(addr, pat, b_count);
     gpuErrchk(cudaPeekAtLastError());
   }
 }

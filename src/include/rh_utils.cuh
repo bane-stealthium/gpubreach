@@ -42,6 +42,8 @@ std::vector<uint64_t> get_aggressors(std::vector<uint64_t> &victims);
 
 std::vector<uint64_t> get_aggressors(RowList &rows, uint64_t row_id,
                                      uint64_t num_agg, uint64_t step);
+std::vector<uint64_t> get_aggressors_dir(RowList &rows, uint64_t row_id,
+                                     uint64_t num_agg, uint64_t step, bool left);
 
 void set_rows(RowList &rows, std::vector<uint64_t> &target_rows, uint8_t pat,
               uint64_t b_count);

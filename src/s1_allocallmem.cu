@@ -105,6 +105,8 @@ alloc_all_mem (uint64_t num_alloc, double threshold, uint64_t skip, GPUBreachCon
   cudaMallocManaged (&temp, num_alloc * ALLOC_SIZE);
   cudaMemPrefetchAsync (temp, RH_LIMIT, device);
   cudaDeviceSynchronize ();
+  std::cout << (void*)temp << '\n';
+  paused();
 
   uint64_t i = 0;
   for (; i < num_alloc; i += 1)

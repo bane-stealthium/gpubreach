@@ -5,13 +5,31 @@
 
 GPUBreachContext::BitFlipConfig::BitFlipConfig (const std::string& config_file)
 {
-    // INIReader reader(config_file);
-    // if (reader.ParseError() < 0) {
-    //     std::cout << "Can't load " + config_file + "\n";
-    //     exit(1);
-    // }
+    INIReader reader(config_file);
+    if (reader.ParseError() < 0) {
+        std::cout << "Can't load " + config_file + "\n";
+        exit(1);
+    }
 
-    // num_agg = reader.GetUnsigned64("config", "num_agg", 0);
+    // RH Config
+    const std::string rh_section = "rh_config";
+    num_agg = reader.GetUnsigned64(rh_section, "num_agg", 0);
+    row_step = reader.GetUnsigned64(rh_section, "row_step", 0);
+    num_rows = reader.GetUnsigned64(rh_section, "num_rows", 0);
+    it = reader.GetUnsigned64(rh_section, "it", 0);
+    n = reader.GetUnsigned64(rh_section, "n", 0);
+    k = reader.GetUnsigned64(rh_section, "k", 0);
+    delay = reader.GetUnsigned64(rh_section, "delay", 0);
+    period = reader.GetUnsigned64(rh_section, "period", 0);
+    repeat = reader.GetUnsigned64(rh_section, "repeat", 0);
+
+    // Flip Config
+    const std::string flip_section = "flip_config";
+    agg_pat = reader.GetString(flip_section, "agg_pat", "0x00");
+    row_set_file = reader.GetString(flip_section, "row_set_file", "");
+    left = reader.GetBoolean(flip_section, "left", false);
+    vic_row = reader.GetUnsigned64(flip_section, "vic_row", 0);
+    crit_agg = reader.GetUnsigned64(flip_section, "crit_agg", 0);
 }
 
 __global__ void initialize_memory(uint8_t *array, uint64_t size)

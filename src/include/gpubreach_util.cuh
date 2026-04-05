@@ -42,7 +42,25 @@ struct GPUBreachContext {
     struct BitFlipConfig{
         BitFlipConfig(){};
         BitFlipConfig(const std::string& config_file);
+
+        // RH Config
         uint64_t num_agg;
+        uint64_t step;
+        uint64_t row_step;
+        uint64_t num_rows;
+        uint64_t it;
+        uint64_t n;
+        uint64_t k;
+        uint64_t delay;
+        uint64_t period;
+        uint64_t repeat;
+
+        // Flip Config
+        std::string agg_pat;
+        std::string row_set_file;
+        bool left;
+        uint64_t vic_row;
+        uint64_t crit_agg;
     };
     BitFlipConfig bitflip_config;
 };

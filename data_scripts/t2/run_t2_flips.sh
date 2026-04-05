@@ -34,8 +34,8 @@ for i in {1..8}; do
     delay=${delays[$i]}
     flip_name=${flip_names[$i]}
 
-    min_rowid=$((flip_row - 94))
-    max_rowid=$((flip_row + 10))
+    min_rowid=$((flip_row + 2))
+    max_rowid=$((flip_row + 92))
 
     mkdir -p $dirname/$flip_name
 

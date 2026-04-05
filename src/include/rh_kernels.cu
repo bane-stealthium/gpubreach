@@ -10,14 +10,11 @@
 __global__ void set_address_kernel(uint8_t *addr_arr, uint64_t value,
                                    uint64_t b_len)
 {
-  int offset = threadIdx.x + blockIdx.x * blockDim.x;
-  if (offset < b_len)
-  {
+  for (int i = 0; i < b_len; i++)
     asm volatile("{\n\t"
                  "st.u8.global.wt [%0], %1;\n\t"
-                 "}" ::"l"(addr_arr + offset),
+                 "}" ::"l"(addr_arr + i),
                  "l"(value));
-  }
 }
 
 /**

@@ -11,13 +11,13 @@ python3 -m pip install matplotlib torch==2.10.0 torchvision==0.25.0
 cd gpuhammer/src
 rm -rf out
 cmake -S . -B out/build
-cd out/build && make
+cd out/build && make -j 
 cd $BREACH_ROOT
 
 cd src/
 rm -rf out
 cmake -S . -B out
-cd out && make
+cd out && make -j
 
 cd $BREACH_ROOT
 

