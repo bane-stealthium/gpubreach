@@ -54,6 +54,7 @@ struct GPUBreachContext {
         uint64_t delay;
         uint64_t period;
         uint64_t repeat;
+        uint64_t mem_size;
 
         // Flip Config
         std::string agg_pat;

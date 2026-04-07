@@ -6,16 +6,6 @@
 #define S3_FIRSTREGION_ATTACK_CUH
 
 /**
- * @brief Test memory limit after Step 2 Massaging.
- *
- * @param argc 3
- * @param argv [0] num_alloc_init [1] threshold [2] skip. Detail see
- * first_PT_region_attack comment.
- */
-void
-first_PT_region_attack_test (int argc, char *argv[]);
-
-/**
  * @brief Step 3, Hammer the PT region PTEs, repeat until corrupted
  *
  * @param num_alloc_init size of allocation for alloc_all_mem
@@ -32,7 +22,7 @@ first_PT_region_attack_test (int argc, char *argv[]);
  * @return false, Something is wrong. True otherwise.
  */
 bool first_PT_region_attack (
-    uint64_t num_alloc_init, uint64_t num_alloc_post_msg, double threshold, uint64_t skip, GPUBreachContext& ctx);
+    uint64_t num_alloc_init, double threshold, uint64_t skip, GPUBreachContext& ctx);
 
 /**
  * @brief Same as above but takes the arguments as command line, starting index

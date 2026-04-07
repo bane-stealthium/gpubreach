@@ -16,6 +16,8 @@ alloc_all_mem_test (int argc, char *argv[])
 {
   const double threshold = std::stod (argv[0]);
   const uint64_t skip = std::stoull (argv[1]);
+  GPUBreachContext ctx;
+  ctx.bitflip_config = GPUBreachContext::BitFlipConfig(argv[2]);
 
   uint8_t *temp;
   size_t total_byte;
@@ -34,7 +36,7 @@ alloc_all_mem_test (int argc, char *argv[])
   // Prefetch RH_Limit amount of memory as we will do in actual attack.
   // Required step for GPUHammer to work.
   int device;
-  const uint64_t RH_LIMIT = total_byte - (2L * 1024 * 1024 * 1024);
+  const uint64_t RH_LIMIT = ctx.bitflip_config.mem_size;
   cudaGetDevice (&device);
   cudaMallocManaged (&temp, total_byte);
   cudaMemPrefetchAsync (temp, RH_LIMIT, device);
@@ -81,6 +83,7 @@ alloc_all_mem (int argc, char *argv[])
   const double threshold = std::stod (argv[1]);
   const uint64_t skip = std::stoull (argv[2]);
   GPUBreachContext ctx;
+  ctx.bitflip_config = GPUBreachContext::BitFlipConfig(argv[3]);
 
   return alloc_all_mem (num_alloc, threshold, skip, ctx);
 }
@@ -98,7 +101,7 @@ alloc_all_mem (uint64_t num_alloc, double threshold, uint64_t skip, GPUBreachCon
               cudaGetErrorString (cuda_status));
       exit (1);
     }
-  const uint64_t RH_LIMIT = total_byte - (2L * 1024 * 1024 * 1024);
+  const uint64_t RH_LIMIT = ctx.bitflip_config.mem_size;
 
   int device;
   cudaGetDevice (&device);

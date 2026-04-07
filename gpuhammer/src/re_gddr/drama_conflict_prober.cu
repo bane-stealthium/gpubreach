@@ -19,15 +19,6 @@ ConflictProber::ConflictProber (uint64_t n, uint64_t size, uint64_t range, uint6
       exit (1);
     }
   cudaMalloc (&mp_addr_layout, m_size);
-  // int device;
-  // cudaGetDevice (&device);
-  // cudaMallocManaged (&mp_addr_layout, total_byte);
-  // cuMemAdvise((CUdeviceptr)mp_addr_layout, m_size, CU_MEM_ADVISE_SET_PREFERRED_LOCATION, device);
-  // cudaMemPrefetchAsync (mp_addr_layout, m_size, device);
-  // cudaDeviceSynchronize ();
-  // gpuErrchk(cudaPeekAtLastError());
-  // cudaMallocManaged (&mp_time_arr_device, sizeof (uint64_t) * m_it);
-  // cudaMallocManaged (&mp_addr_lst_device, m_n * sizeof (uint8_t *));
   cudaMalloc (&mp_time_arr_device, sizeof (uint64_t) * m_it);
   cudaMalloc (&mp_addr_lst_device, m_n * sizeof (uint8_t *));
   std::cout << (void*) mp_addr_layout << '\n';

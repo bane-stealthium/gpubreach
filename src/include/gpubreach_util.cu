@@ -22,6 +22,7 @@ GPUBreachContext::BitFlipConfig::BitFlipConfig (const std::string& config_file)
     delay = reader.GetUnsigned64(rh_section, "delay", 0);
     period = reader.GetUnsigned64(rh_section, "period", 0);
     repeat = reader.GetUnsigned64(rh_section, "repeat", 0);
+    mem_size = reader.GetUnsigned64(rh_section, "mem_size", 0);
 
     // Flip Config
     const std::string flip_section = "flip_config";

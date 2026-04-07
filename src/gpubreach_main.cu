@@ -16,7 +16,6 @@ enum Task
   FIRST_REGION_TEST,
   FIRST_REGION,
   FIRST_REGION_ATK,
-  FIRST_REGION_ATK_MEM_TEST,
   SECOND_REGION,
   INVALID
 };
@@ -32,8 +31,6 @@ parseTask (const std::string &tsk)
     return Task::FIRST_REGION_TEST;
   if (tsk == "first_region")
     return Task::FIRST_REGION;
-  if (tsk == "first_region_atk_mem_test")
-    return Task::FIRST_REGION_ATK_MEM_TEST;
   if (tsk == "first_region_atk")
     return Task::FIRST_REGION_ATK;
   if (tsk == "second_region")
@@ -74,9 +71,6 @@ main (int argc, char *argv[])
       break;
     case Task::FIRST_REGION:
       first_PT_region (argc, argv);
-      break;
-    case Task::FIRST_REGION_ATK_MEM_TEST:
-      first_PT_region_attack_test (argc, argv);
       break;
     case Task::FIRST_REGION_ATK:
       first_PT_region_attack (argc, argv);
