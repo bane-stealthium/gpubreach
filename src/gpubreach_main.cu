@@ -5,10 +5,6 @@
 #include <iostream>
 #include <chrono>
 
-/**
- * TODO: May not be useful if the switch statements do not do anything
- * interesting other than calling each step...
- */
 enum Task
 {
   ALL_MEM_TEST,
