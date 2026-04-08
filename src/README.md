@@ -41,7 +41,7 @@ python3 gpubreach.py <task> -h
 
 Before the attack can succeed, you need to find a suitable bit-flip on your machine. You can use the `gpuahammer/` we provided, or other attack patterns from your own directories for the search. Make sure they still follow the same structure and modify `HAMMER_ROOT` to point to your own directory instead.
 
-__Configuratio File__: For ease of use, we provide the feature of _bit-flip configuration files_, for both "A1" and "B1" flips, covering the cases where the aggressor is on the left or right of the victim page. They are very similar to how you initialize GPUHammer's bash scripts.
+__Configuration File__: For ease of use, we provide the feature of _bit-flip configuration files_, for both "A1" and "B1" flips, covering the cases where the aggressor is on the left or right of the victim page. They are very similar to how you initialize GPUHammer's bash scripts.
 
 
 Please view the sample config files in the `flip_config_sample\` folder on how to construct your own, which we provided with comprehensive comments. If necessary, `load_rowhammer_bitflip_info()` contains more details on how they are used exactly.
