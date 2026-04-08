@@ -33,7 +33,7 @@ second_PT_region (uint64_t num_alloc_init,
       if (i == next_id)
         evict_from_device (region_ptrs[victim_id], ALLOC_SIZE);
 
-      cudaMallocManaged (&temp, ALLOC_SIZE + 4096);
+      cudaMallocManaged (&temp, ALLOC_SIZE + 4 * KB);
 
       double currentMS = time_data_access (temp + ALLOC_SIZE, 1);
       DBG_OUT << i << " New PT time: " << currentMS << " ms"<< std::endl;
@@ -50,12 +50,14 @@ second_PT_region (uint64_t num_alloc_init,
         next_id = i + 508;
     }
 
+  /****************************** Post Processing: make some PTE visible in our view *******************************/
+
   // Depending on the position of the corrupted 64KB page in 2MB page,
   // prefill to that point with 4KB pages.
   std::vector<uint8_t*> fourkb_pages;
-  for (uint64_t i = 0; i < (((uint64_t)corrupted_ptr % (2L * 1024 * 1024)) / 4096) + 1; i += 1)
+  for (uint64_t i = 0; i < (((uint64_t)corrupted_ptr % ALLOC_SIZE) / 4 * KB) + 1; i += 1)
     {
-      cudaMallocManaged (&temp, ALLOC_SIZE + 4096);
+      cudaMallocManaged (&temp, ALLOC_SIZE + 4 * KB);
 
       double currentMS = time_data_access (temp + ALLOC_SIZE, 1);
       fourkb_pages.push_back(temp);
@@ -93,7 +95,7 @@ second_PT_region (uint64_t num_alloc_init,
   // Print out the PTEs we see of cudaMalloced_ptrs
   if (debug_enabled())
   {
-    print_memory<<<1,1>>>(corrupted_ptr, 64 * 1024);
+    print_memory<<<1,1>>>(corrupted_ptr, 64 * KB);
     cudaDeviceSynchronize();
   }
   gpuErrchk(cudaPeekAtLastError());

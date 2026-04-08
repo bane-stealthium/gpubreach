@@ -89,12 +89,6 @@ def arg_4_setup(subparsers, name, help, func):
         required=True,
     )
     parser.add_argument(
-        "--n_step3",
-        type=int,
-        help="Numer of 2MB allocations before step 3 that re-fills the GPU memory with dense PT regions.",
-        required=True,
-    )
-    parser.add_argument(
         "-t", "--threshold",
         type=float,
         help="Timing side-channel threshold that is considered as an eviction.",
@@ -130,12 +124,6 @@ def arg_5_setup(subparsers, name, help, func):
         "--n_step1",
         type=int,
         help="Numer of 2MB allocations in step 1 that will fill the GPU memory to full.",
-        required=True,
-    )
-    parser.add_argument(
-        "--n_step3",
-        type=int,
-        help="Numer of 2MB allocations before step 3 that re-fills the GPU memory with dense PT regions.",
         required=True,
     )
     parser.add_argument(

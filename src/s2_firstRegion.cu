@@ -49,7 +49,7 @@ first_PT_region_test (int argc, char *argv[])
   uint64_t next_id = max_alloc_chunks;
   for (uint64_t i = 0; i < max_alloc_chunks; i += 1)
     {
-      cudaMallocManaged (&temp, ALLOC_SIZE + 4096);
+      cudaMallocManaged (&temp, ALLOC_SIZE + 4 * KB);
 
       double currentMS = time_data_access (temp + ALLOC_SIZE, 1);
       DBG_OUT << i << " New PT time: " << currentMS << " ms" << std::endl;
@@ -197,7 +197,7 @@ first_PT_region (uint64_t num_alloc_init, double threshold, uint64_t skip, GPUBr
         evict_from_device (alloc_ptrs[victim_page], ALLOC_SIZE);
 
       // Generating 2MB + 4KB pages
-      cudaMallocManaged (&temp, ALLOC_SIZE + 4096);
+      cudaMallocManaged (&temp, ALLOC_SIZE + 4 * KB);
 
       // Only trigger 4KB allocation to save memory.
       double currentMS = time_data_access (temp + ALLOC_SIZE, 1);

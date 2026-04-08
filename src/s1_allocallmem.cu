@@ -117,6 +117,7 @@ alloc_all_mem (uint64_t num_alloc, double threshold, uint64_t skip, GPUBreachCon
     {
       double currentMS = time_data_access (temp, ALLOC_SIZE);
 
+      // Store each 2MB data as pointers for future use.
       ctx.step1_data.alloc_ptrs.push_back (temp);
 
       DBG_OUT << i << " Recorded time: " << currentMS << " ms" << (void *)temp
@@ -124,6 +125,7 @@ alloc_all_mem (uint64_t num_alloc, double threshold, uint64_t skip, GPUBreachCon
 
       temp += ALLOC_SIZE;
     }
+
   if (debug_enabled())
   {
     std::cout << "(Step 1 Done) Memory Allocated to Full: Press "

@@ -34,15 +34,6 @@ parseTask (const std::string &tsk)
   return Task::INVALID;
 }
 
-static void
-removeFirstTwoArgs (int &argc, char *argv[])
-{
-  for (int i = 2; i < argc; ++i)
-    argv[i - 2] = argv[i];
-  argc -= 2;
-  argv[argc] = nullptr;
-}
-
 int
 main (int argc, char *argv[])
 {
@@ -53,7 +44,7 @@ main (int argc, char *argv[])
     }
 
   std::string cmd = argv[1];
-  removeFirstTwoArgs (argc, argv);
+  removeFirstNArgs (argc, argv, 2);
   switch (parseTask (cmd))
     {
     case Task::ALL_MEM_TEST:

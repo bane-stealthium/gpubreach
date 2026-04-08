@@ -118,9 +118,9 @@ first_PT_region_attack (uint64_t num_alloc_init, double threshold,
       {
           // Pre-initialize result slots in existing region memory
           uint64_t sentinel = UINT64_MAX;
-          memset_ptr<<<1, 1>>>(region_ptrs[i] + 64 * 1024 + 8,  0,     8);
-          memset_ptr<<<1, 1>>>(region_ptrs[i] + 64 * 1024 + 16, sentinel, 8);
-          memset_ptr<<<1, 1>>>(region_ptrs[i] + 64 * 1024 + 24, 0,     8);
+          memset_ptr<<<1, 1>>>(region_ptrs[i] + 64 * KB + 8,  0,     8);
+          memset_ptr<<<1, 1>>>(region_ptrs[i] + 64 * KB + 16, sentinel, 8);
+          memset_ptr<<<1, 1>>>(region_ptrs[i] + 64 * KB + 24, 0,     8);
           cudaDeviceSynchronize();
 
           // Launch inner j loop as kernel
@@ -129,9 +129,9 @@ first_PT_region_attack (uint64_t num_alloc_init, double threshold,
 
           // Copy results back
           uint64_t found = 0, corrupted_j = 0, victim = 0;
-          cudaMemcpy(&found,       region_ptrs[i] + 64 * 1024 + 8,  8, cudaMemcpyDeviceToHost);
-          cudaMemcpy(&corrupted_j, region_ptrs[i] + 64 * 1024 + 16, 8, cudaMemcpyDeviceToHost);
-          cudaMemcpy(&victim,      region_ptrs[i] + 64 * 1024 + 24, 8, cudaMemcpyDeviceToHost);
+          cudaMemcpy(&found,       region_ptrs[i] + 64 * KB + 8,  8, cudaMemcpyDeviceToHost);
+          cudaMemcpy(&corrupted_j, region_ptrs[i] + 64 * KB + 16, 8, cudaMemcpyDeviceToHost);
+          cudaMemcpy(&victim,      region_ptrs[i] + 64 * KB + 24, 8, cudaMemcpyDeviceToHost);
 
           if (found)
           {
