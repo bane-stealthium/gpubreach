@@ -1,18 +1,13 @@
 import matplotlib.pyplot as plt
-from matplotlib.patches import Circle
-from matplotlib.patches import Ellipse
+import matplotlib.patches as mpatches
 import numpy as np
-from math import pi
 import sys
-# Input file
-filename = sys.argv[1]
 
-# Read and process data
-page_sizes = ["4KB", "64KB","2MB" ]
-indices = []
+filename = sys.argv[1]
+outfile = sys.argv[2]
+
+page_sizes = ["2MB", "4KB", "64KB"]
 page_points = {p: [] for p in page_sizes}
-plt.rcParams['pdf.fonttype'] = 42
-plt.rcParams['ps.fonttype'] = 42
 
 with open(filename, "r") as f:
     for i, line in enumerate(f):
@@ -20,46 +15,79 @@ with open(filename, "r") as f:
         for p in page_sizes:
             if p in entries:
                 page_points[p].append(i)
-        indices.append(i)
 
-# Plot
-plt.figure(figsize=(8, 3))
-plt.grid(True, axis='x', linestyle='--', alpha=0.5, linewidth=1.5)
-plt.grid(True, axis='y', linestyle='--', alpha=0.5, linewidth=1.5)
-plt.tick_params(axis='both', which='major', labelsize=16, left=False)
-plt.tick_params(axis='both', which='minor', labelsize=16, left=False)
-plt.gca().set_axisbelow(True)
-for p in page_sizes:
-    plt.scatter(page_points[p], [p]*len(page_points[p]), label=p, s=20)
+n = max(max(v) for v in page_points.values() if v) + 1
 
-plt.ylabel('Page Type', fontsize=22)
-plt.xlabel('Allocation Size', fontsize=22)
-plt.yticks(page_sizes)
-plt.xticks([0, 128, 256, 384, 512], ['0', '0.5MB', '1MB', '1.5MB', '2MB'])
+def presence(indices, n):
+    arr = np.zeros(n, dtype=int)
+    for idx in indices:
+        arr[idx] = 1
+    return arr
 
-handles, labels = plt.gca().get_legend_handles_labels()
+active = {p: presence(page_points[p], n) for p in page_sizes}
 
-# Reverse the order
-handles = handles[::-1]
-labels = labels[::-1]
-plt.legend(handles=handles, labels=labels, loc="lower left", fontsize=12, markerscale=1.5, ncols=3)
+# X axis: each index is a 4KB step
+x = np.arange(n)
+x_kb = x * 4  # in KB
 
-u=520.     #x-position of the center
-v=0    #y-position of the center
-a=30.     #radius on the x-axis
-b=0.1    #radius on the y-axis
+def kb_label(kb):
+    if kb == 0:
+        return '0'
+    elif kb % 1024 == 0:
+        return f'{kb // 1024}MB'
+    elif kb >= 1024:
+        return f'{kb // 1024}MB+{kb % 1024}KB'
+    else:
+        return f'{kb}KB'
 
-t = np.linspace(0, 2*pi, 100)
-plt.plot( u+a*np.cos(t) , v+b*np.sin(t) , linewidth=2, color="red", linestyle='-')
+# Stack order: 2MB at bottom, then 4KB, then 64KB
+stack_order = ["2MB", "4KB", "64KB"]
+colors = {"2MB": "#1D9E75", "4KB": "#378ADD", "64KB": "#D85A30"}
+alphas = {"2MB": 0.6, "4KB": 0.6, "64KB": 0.6}
 
-# last_4kb_index = page_points["4KB"][-1]
-# last_4kb_y = "4KB"  # y-axis value is the page type
+plt.rcParams['pdf.fonttype'] = 42
+plt.rcParams['ps.fonttype'] = 42
 
-# # Add text annotation
-# plt.text(last_4kb_index, last_4kb_y, "2MB + 64KB",
-#          fontsize=10, ha='left', va='bottom', rotation=0, color='red')
-# plt.tight_layout()
+fig, ax = plt.subplots(figsize=(8, 3))
 
-# Save as high-resolution PDF
-plt.savefig(sys.argv[2], dpi=500, bbox_inches='tight')
+bottom = np.zeros(n)
+for p in stack_order:
+    y = active[p].astype(float)
+    ax.fill_between(x_kb, bottom, bottom + y,
+                    step='mid',
+                    alpha=alphas[p],
+                    color=colors[p],
+                    linewidth=0)
+    ax.step(x_kb, bottom + y,
+            where='mid',
+            color=colors[p],
+            linewidth=1.5)
+    bottom = bottom + y
+
+# X ticks: fixed at 0, 0.5MB, 1MB, 1.5MB, 2MB (in KB units)
+tick_kb = [0, 512, 1024, 1536, 2048]
+tick_labels = ['0', '0.5MB', '1MB', '1.5MB', '2MB']
+ax.set_xticks(tick_kb)
+ax.set_xticklabels(tick_labels, fontsize=11)
+
+ax.set_yticks(range(len(stack_order) + 1))
+ax.set_ylabel('Active page types', fontsize=16)
+ax.set_xlabel('Allocation size (each step = +4KB)', fontsize=16)
+ax.set_ylim(0, len(stack_order))
+ax.tick_params(axis='both', labelsize=16)
+
+ax.grid(True, axis='x', linestyle='--', alpha=0.4, linewidth=1)
+ax.grid(True, axis='y', linestyle='--', alpha=0.4, linewidth=1)
+ax.set_axisbelow(True)
+
+legend_patches = [
+    mpatches.Patch(color=colors[p], alpha=0.7, label=p)
+    for p in reversed(stack_order)
+]
+ax.legend(handles=legend_patches, fontsize=12, loc='upper left',
+          framealpha=0.8, ncols=3)
+
+plt.tight_layout()
+plt.savefig(outfile, dpi=300, bbox_inches='tight')
 plt.close()
+print(f"Saved to {outfile}")
