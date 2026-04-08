@@ -1,5 +1,5 @@
-#include <iostream>
 #include <gpubreach_util.cuh>
+#include <iostream>
 #include <stdint.h>
 
 #ifndef S2_FIRSTREGION_CUH
@@ -28,7 +28,8 @@ void first_PT_region_test (int argc, char *argv[]);
  * GPUHammer
  * @return false, Something is wrong. True otherwise.
  */
-bool first_PT_region (uint64_t num_alloc_init, double threshold, uint64_t skip, GPUBreachContext& ctx);
+bool first_PT_region (uint64_t num_alloc_init, double threshold, uint64_t skip,
+                      GPUBreachContext &ctx);
 
 /**
  * @brief Same as above but takes the arguments as command line, starting index

@@ -26,7 +26,8 @@ uint64_t alloc_all_mem_test (int argc, char *argv[]);
  * @return true No evictions identified
  * @return false Eviction happend, something is wrong.
  */
-bool alloc_all_mem (uint64_t num_alloc, double threshold, uint64_t skip, GPUBreachContext& ctx);
+bool alloc_all_mem (uint64_t num_alloc, double threshold, uint64_t skip,
+                    GPUBreachContext &ctx);
 
 /**
  * @brief Same as above but takes the arguments as command line, starting index

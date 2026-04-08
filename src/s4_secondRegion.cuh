@@ -1,5 +1,5 @@
-#include <iostream>
 #include <gpubreach_util.cuh>
+#include <iostream>
 #include <stdint.h>
 
 #ifndef S4_SECONDREGION_CUH
@@ -15,8 +15,8 @@
  * @param skip first few entries in case timing isn't reliable
  * @return false, Something is wrong. True otherwise.
  */
-bool second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg, double threshold,
-                       uint64_t skip, GPUBreachContext &ctx);
+bool second_PT_region (uint64_t num_alloc_init, uint64_t num_alloc_post_msg,
+                       double threshold, uint64_t skip, GPUBreachContext &ctx);
 
 GPUBreachContext second_PT_region (int argc, char *argv[]);
 

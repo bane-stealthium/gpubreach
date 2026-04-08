@@ -1,5 +1,5 @@
-#include <iostream>
 #include <gpubreach_util.cuh>
+#include <iostream>
 #include <stdint.h>
 
 #ifndef S3_FIRSTREGION_ATTACK_CUH
@@ -21,8 +21,8 @@
  * @param out_victim_id returns the index for out_victim_ptr in out_region_ptrs
  * @return false, Something is wrong. True otherwise.
  */
-bool first_PT_region_attack (
-    uint64_t num_alloc_init, double threshold, uint64_t skip, GPUBreachContext& ctx);
+bool first_PT_region_attack (uint64_t num_alloc_init, double threshold,
+                             uint64_t skip, GPUBreachContext &ctx);
 
 /**
  * @brief Same as above but takes the arguments as command line, starting index

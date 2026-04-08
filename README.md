@@ -284,7 +284,7 @@ This step will perform the GPU-side privilege escalation, find the candidate PTE
 
 ```bash
 $ cd gpubreach
-$ python3 gpubreach.py app_cpu_exploit --n_step1 24109 --n_step3 24070 -t 0.2 -s 15
+$ python3 gpubreach.py app_cpu_exploit --n_step1 24109 -t 0.2 -s 15 -c "$BREACH_ROOT/flip_config_sample/FLIP_LEFT_TMPL.ini"
 ```
 
 When corruption is successful, the program will pause, and you will see the following text:

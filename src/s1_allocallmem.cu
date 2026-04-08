@@ -17,10 +17,10 @@ alloc_all_mem_test (int argc, char *argv[])
   const double threshold = std::stod (argv[0]);
   const uint64_t skip = std::stoull (argv[1]);
   GPUBreachContext ctx;
-  ctx.bitflip_config = GPUBreachContext::BitFlipConfig(argv[2]);
+  ctx.bitflip_config = GPUBreachContext::BitFlipConfig (argv[2]);
 
   uint8_t *temp;
-  size_t total_byte = get_memory_limit();
+  size_t total_byte = get_memory_limit ();
 
   uint64_t chunks = 0;
   int consec_spike = 0;
@@ -28,8 +28,9 @@ alloc_all_mem_test (int argc, char *argv[])
 
   // Prefetch RH_Limit amount of memory as we will do in actual attack.
   // Required step for GPUHammer to work.
-  
-  // Note: We use 'total_byte' as allocate then prefetching exact amounts effects the allocation.
+
+  // Note: We use 'total_byte' as allocate then prefetching exact amounts
+  // effects the allocation.
   int device;
   const uint64_t RH_LIMIT = ctx.bitflip_config.mem_size;
   cudaGetDevice (&device);
@@ -77,26 +78,27 @@ alloc_all_mem (int argc, char *argv[])
   const double threshold = std::stod (argv[1]);
   const uint64_t skip = std::stoull (argv[2]);
   GPUBreachContext ctx;
-  ctx.bitflip_config = GPUBreachContext::BitFlipConfig(argv[3]);
+  ctx.bitflip_config = GPUBreachContext::BitFlipConfig (argv[3]);
 
   return alloc_all_mem (num_alloc, threshold, skip, ctx);
 }
 
 bool
-alloc_all_mem (uint64_t num_alloc, double threshold, uint64_t skip, GPUBreachContext &ctx)
+alloc_all_mem (uint64_t num_alloc, double threshold, uint64_t skip,
+               GPUBreachContext &ctx)
 {
   uint8_t *temp;
 
   const uint64_t RH_LIMIT = ctx.bitflip_config.mem_size;
 
-  // Note: 'num_alloc' is just for debugging convienience. 
+  // Note: 'num_alloc' is just for debugging convienience.
   //  This can be inferred dynamically (e.g. in Step 3)
   int device;
   cudaGetDevice (&device);
   cudaMallocManaged (&temp, num_alloc * ALLOC_SIZE);
   cudaMemPrefetchAsync (temp, RH_LIMIT, device);
   cudaDeviceSynchronize ();
-  DBG_OUT << (void*)temp << '\n';
+  DBG_OUT << (void *)temp << '\n';
 
   for (uint64_t i = 0; i < num_alloc; i++)
     {
@@ -111,16 +113,16 @@ alloc_all_mem (uint64_t num_alloc, double threshold, uint64_t skip, GPUBreachCon
       temp += ALLOC_SIZE;
     }
 
-  if (debug_enabled())
-  {
-    std::cout << "(Step 1 Done) Memory Allocated to Full: Press "
-                "\033[1;32mEnter Key\033[0m to continue..."
-              << '\n';
-    paused ();
-  }
+  if (debug_enabled ())
+    {
+      std::cout << "(Step 1 Done) Memory Allocated to Full: Press "
+                   "\033[1;32mEnter Key\033[0m to continue..."
+                << '\n';
+      paused ();
+    }
   else
-  {
-    std::cout << "(Step 1 Done) Memory Allocated to Full\n";
-  }
+    {
+      std::cout << "(Step 1 Done) Memory Allocated to Full\n";
+    }
   return true;
 }
