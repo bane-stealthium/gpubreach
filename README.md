@@ -20,7 +20,7 @@ In this artifact, we aim to reproduce the following:
 
 All the results are automatically generated **except** the *CPU Privilege Exploit*, which has an interactive component (more details below).
 
-### Please see `src/README.md` for usage/implemenation details.
+### Please see `src/README.md` for additional usage/implementation details.
 
 ## Required Environment
 **Run-time Environment:**  We suggest using a Linux distribution compatible with g++-11 or newer.
@@ -196,7 +196,7 @@ bash run_cupqc_exploit.sh  #(< 1 hour) ; It runs the exploit, then locates the m
 bash run_ml_exploit.sh #(< 10 minutes) ; It runs the exploit, then modifies a cuBLAS branch through the known vulnerable cuBLAS SASS template, which degrades the model accuracy universally.
 ```
 
-> **Note 1:** Other than `run_t2.sh`, the other scripts spawns detached background processes, which needs to be killed manually if you decide to terminate the exploit scripts early.
+> **Note 1:** Other than `run_t2.sh`, the other scripts spawn detached background processes, which need to be killed manually if you decide to terminate the exploit scripts early.
 
 > **Note 2:** There is a very low probability of the exploit chains crashing the attacker program, in which case you can simply re-run the exploit bash script when everything is killed or if necessary, reboot or power cycle in [Debugging Tips](#debugging-tips).
 
@@ -289,7 +289,7 @@ $ cd gpubreach
 $ python3 gpubreach.py app_cpu_exploit --n_step1 24109 -t 0.2 -s 15 -c "$BREACH_ROOT/flip_config_sample/FLIP_LEFT_TMPL.ini"
 ```
 
-> Note: '-c' is the bit-flip configuration file for A1. See `src/README.md` for more detail
+> Note: '-c' is the bit-flip configuration file for A1. See `src/README.md` for more details.
 
 When corruption is successful, the program will pause, and you will see the following text:
 ```text
