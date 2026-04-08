@@ -287,6 +287,8 @@ $ cd gpubreach
 $ python3 gpubreach.py app_cpu_exploit --n_step1 24109 -t 0.2 -s 15 -c "$BREACH_ROOT/flip_config_sample/FLIP_LEFT_TMPL.ini"
 ```
 
+> Note: '-c' is the bit-flip configuration file for A1. See `src/README.md` for more detail
+
 When corruption is successful, the program will pause, and you will see the following text:
 ```text
 (Stable Primitive Ready) Start cpu-exploit now. It should load its page with 0x6464646464646464.

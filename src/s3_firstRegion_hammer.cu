@@ -30,7 +30,7 @@ first_PT_region_attack (uint64_t num_alloc_init, double threshold,
   std::cout << std::dec;
   std::cout
       << "Start Step 3" << "\n"
-      << "Filling Memory to Full Again (Consequently the First PT Region) "
+      << "Filling Memory Close to Full (Consequently the First PT Region) "
       << "\n\n";
 
   uint64_t repeats = 0;
@@ -186,12 +186,11 @@ first_PT_region_attack (uint64_t num_alloc_init, double threshold,
   /* Same concept as what "all_mem_test" did */
   int consec_spike = 0;
   int consec_spike_lim = 3;
+  DBG_OUT << "Filling Memory back to full\n";
   for (uint64_t i = conservative_alloc; i < num_alloc_init; i++)
     {
       cudaMallocManaged (&temp, ALLOC_SIZE);
       double currentMS = time_data_access (temp, ALLOC_SIZE);
-      DBG_OUT << i << " New PT time: " << currentMS << ' ' << (void *)temp
-              << " ms" << std::endl;
       region_ptrs[i] = temp;
 
       // Look for consecutive spikes, reset if not.

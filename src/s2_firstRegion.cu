@@ -113,8 +113,8 @@ load_rowhammer_bitflip_info (GPUBreachContext &ctx)
   std::iota (all_vics.begin (), all_vics.end (), 0);
 
   /* Get Aggressor Rows for this bit-flip. Aggressors in Ascending order*/
-  /*              ← Left   Right →             */
-  /* A       ...       A V A       ...       A */
+  /*                     ← Left   Right →             */
+  /* A       ...       crit_agg V crit_agg       ...       A */
   target_agg = get_aggressors_dir (rows, crit_agg, num_agg, row_step, left);
   std::vector<uint64_t> temp_vec;
   temp_vec.push_back (vic_row);
