@@ -20,7 +20,7 @@ In this artifact, we aim to reproduce the following:
 
 All the results are automatically generated **except** the *CPU Privilege Exploit*, which has an interactive component (more details below).
 
-**Please see `src/README.md` for additional usage/implementation details.**
+**Please see [`src/README.md`](https://github.com/sith-lab/gpubreach/blob/main/src/README.md) for additional usage/implementation details.**
 
 ## Required Environment
 **Run-time Environment:**  We suggest using a Linux distribution compatible with g++-11 or newer.
