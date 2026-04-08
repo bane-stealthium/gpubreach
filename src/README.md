@@ -46,6 +46,11 @@ __Configuratio File__: For ease of use, we provide the feature of _bit-flip conf
 
 Please view the sample config files in `flip_config_sample\` folder on how to construct your own, which we provided comprehensive comments. If necessary, `load_rowhammer_bitflip_info()` contains more details on how they are used exactly.
 
+#### Edge cases currently do not cover:
+1. **Flip in 0th entry of the 32-entry 64KB page table**: We evict the first entry out to generate 64KB pages, so the entry becomes invalid. However, one can modify the evition to evict another entry instead.
+
+2. **Critical Aggress in or partially in the same 2MB page as Victim**: If both crtitical aggressors are exactlt in the same page,  the bit-flip cannot be used. But for the partial case, if the victim 256B that flips is not in the same page, the attack can still succeed by selecting the aggressor and victim pages more carefully.
+
 ### Step 1. Fill GPU Memory
 We recommend enabling the verbose option `-v` when testing. Given different GPUs may have different timing, we run the following to get a sense of the timing spike:
 
