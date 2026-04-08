@@ -49,7 +49,7 @@ Please view the sample config files in the `flip_config_sample\` folder on how t
 #### Edge cases currently do not cover:
 1. **Flip in 0th entry of the 32-entry 64KB page table**: We evict the first entry out to generate 64KB pages, so the entry becomes invalid. However, one can modify the eviction to evict another entry instead.
 
-2. **Critical Aggress in or partially in the same 2MB page as Victim**: If both critical aggressors are exactly in the same page,  the bit-flip cannot be used. But for the partial case, if the victim 256B that flips is not on the same page, the attack can still succeed by selecting the aggressor and victim pages more carefully.
+2. **Critical Aggressor in or partially in the same 2MB page as Victim**: If both critical aggressors are exactly in the same page,  the bit-flip cannot be used. But for the partial case, if the victim 256B that flips is not on the same page, the attack can still succeed by selecting the aggressor and victim pages more carefully.
 
 ### Step 1. Fill GPU Memory
 We recommend enabling the verbose option `-v` when testing. Given that different GPUs may have different timing, we run the following to get a sense of the timing spike:
