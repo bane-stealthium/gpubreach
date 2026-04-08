@@ -125,6 +125,8 @@ void cudaMemcpyArray(T* dst, const T* src, size_t numElements, cudaMemcpyKind ki
 
 void removeFirstNArgs (int &argc, char *argv[], int n);
 
+uint64_t get_memory_limit ();
+
 double time_data_access(uint8_t *array, uint64_t size);
 
 void evict_from_device(uint8_t *array, uint64_t size);
@@ -160,6 +162,7 @@ struct ArbRW_Primtv {
   void flush_tlb ();
   void modify(uint64_t pte);
   void modify(uint64_t ofs, uint64_t pte);
+  void modify(uint8_t* ptr, uint64_t ofs, uint64_t pte);
 };
 
 const uint64_t NULL_PTE =(uint64_t)(0x0600000000000001);

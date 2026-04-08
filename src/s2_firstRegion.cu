@@ -30,14 +30,7 @@ first_PT_region_test (int argc, char *argv[])
     }
 
   uint8_t *temp;
-  size_t total_byte;
-  auto cuda_status = cudaMemGetInfo (nullptr, &total_byte);
-  if (cudaSuccess != cuda_status)
-    {
-      printf ("Error: cudaMemGetInfo fails, %s \n",
-              cudaGetErrorString (cuda_status));
-      exit (1);
-    }
+  size_t total_byte = get_memory_limit();
 
   /**
    * 1. First allocation will be a 4KB data Page eviction

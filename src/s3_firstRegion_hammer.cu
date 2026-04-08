@@ -169,17 +169,6 @@ first_PT_region_attack (uint64_t num_alloc_init, double threshold,
           DBG_OUT << "Found victim id." << '\n';
         }
     }
-  if (debug_enabled())
-  {
-    std::cout << "(Step 3 Done) Found Corrupted PFN Destination: Press "
-               "\033[1;32mEnter Key\033[0m to continue..."
-            << '\n';
-    paused ();
-  }
-  else
-  {
-    std::cout << "(Step 3 Done) Found Corrupted PFN Destination\n";
-  }
 
   /* Allocate memory to full to prepare for massaging the second PT region. */
   /* Same concept as what "all_mem_test" did */
@@ -200,7 +189,17 @@ first_PT_region_attack (uint64_t num_alloc_init, double threshold,
           break;
         }
     }
-  
+  if (debug_enabled())
+  {
+    std::cout << "(Step 3 Done) Found Corrupted PFN Destination: Press "
+               "\033[1;32mEnter Key\033[0m to continue..."
+            << '\n';
+    paused ();
+  }
+  else
+  {
+    std::cout << "(Step 3 Done) Found Corrupted PFN Destination\n";
+  }
 
   return true;
 }

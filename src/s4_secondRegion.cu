@@ -55,7 +55,7 @@ second_PT_region (uint64_t num_alloc_init,
   // Depending on the position of the corrupted 64KB page in 2MB page,
   // prefill to that point with 4KB pages.
   std::vector<uint8_t*> fourkb_pages;
-  for (uint64_t i = 0; i < (((uint64_t)corrupted_ptr % ALLOC_SIZE) / 4 * KB) + 1; i += 1)
+  for (uint64_t i = 0; i < (((uint64_t)corrupted_ptr % ALLOC_SIZE) / (4 * KB)) + 1; i += 1)
     {
       cudaMallocManaged (&temp, ALLOC_SIZE + 4 * KB);
 

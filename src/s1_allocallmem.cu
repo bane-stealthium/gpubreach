@@ -20,14 +20,7 @@ alloc_all_mem_test (int argc, char *argv[])
   ctx.bitflip_config = GPUBreachContext::BitFlipConfig(argv[2]);
 
   uint8_t *temp;
-  size_t total_byte;
-  auto cuda_status = cudaMemGetInfo (nullptr, &total_byte);
-  if (cudaSuccess != cuda_status)
-    {
-      printf ("Error: cudaMemGetInfo fails, %s \n",
-              cudaGetErrorString (cuda_status));
-      exit (1);
-    }
+  size_t total_byte = get_memory_limit();
 
   uint64_t chunks = 0;
   int consec_spike = 0;
@@ -94,14 +87,6 @@ alloc_all_mem (uint64_t num_alloc, double threshold, uint64_t skip, GPUBreachCon
 {
   uint8_t *temp;
 
-  size_t total_byte;
-  auto cuda_status = cudaMemGetInfo (nullptr, &total_byte);
-  if (cudaSuccess != cuda_status)
-    {
-      printf ("Error: cudaMemGetInfo fails, %s \n",
-              cudaGetErrorString (cuda_status));
-      exit (1);
-    }
   const uint64_t RH_LIMIT = ctx.bitflip_config.mem_size;
 
   // Note: 'num_alloc' is just for debugging convienience. 
