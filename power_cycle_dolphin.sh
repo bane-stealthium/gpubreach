@@ -1,8 +1,8 @@
 #!/bin/bash
 
-HOSTNAME="dolphin.syslab.sandbox"
-HOST_IP="dolphin.syslab.sandbox"
-PLUG_IP="172.31.12.2"
+HOSTNAME="<fill_in>"
+HOST_IP="<fill_in>"
+PLUG_IP="<fill_in>"
 
 echo " !! Machine ($HOSTNAME) is about to be powered off..."
 
