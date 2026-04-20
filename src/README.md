@@ -4,7 +4,7 @@
 ```txt
 📄 gpubreach.py: Python script to help navigate GPUBreach's various stages and example apps.
 📂 /src
-│
+├── 📂 /gpuhammer: contains the GPUHammer code, the current "HAMMER_ROOT". Shares the "src/include".
 ├── 📂 /include: contains the core code to launch GPUHammer and the utils for GPUBreach massaging
 │   └── 📄 rh_*: Directly ported from GPUHammer to launch Rowhammer with a minimal amount of code.
 │   └── 📄 gpubreach_util.cu/h: CUDA Kernels and utility C++ functions for massaging.
@@ -22,6 +22,9 @@
 |
 └── 📄 s4_secondRegion.*: Step 4 of GPUBreach, same as sc_firstRegion.
 ```
+
+### Important
+For Row Set consistency purposes, GPUBreach and GPUHammer code shares the same include folder. The additional kernels from GPUBreach can alter the Row Set due to additional memory reserved.
 
 ### Step 0.1 Compile
 ```bash
