@@ -28,10 +28,18 @@ For Row Set consistency purposes, GPUBreach and GPUHammer code shares the same i
 
 ### Step 0.1 Compile
 ```bash
-cmake -S ./src -B ./src/out/
-cd ./src/out/
-make
-```
+# Make GPUHammer
+cd $HAMMER_ROOT/src
+rm -rf out
+cmake -S . -B out/build
+cd out/build && make -j 
+cd $BREACH_ROOT
+
+# Make GPUBreach
+cd src/
+rm -rf out
+cmake -S . -B out
+cd out && make -j
 ```
 # Display available tasks
 python3 gpubreach.py -h

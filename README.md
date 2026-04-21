@@ -398,16 +398,7 @@ Now you can go back to step 2 above.
 
 ### Debugging Tips
 
-1. As we corrupt the driver during artifact evaluation, the machine may become unstable or crash without the possibility of automatic restart. When this happens, we provide an out-of-band restart option. SSH into syslab and run the power cycle command.
-
-    ```bash
-    ssh eval2026@syslab.cs.toronto.edu
-
-    bash power_cycle_dolphin.sh
-    ```
-    `power_cycle_dolphin.sh` works by triggering a [Wiz Smart Plug](https://www.homehardware.ca/en/smart-plugs-2-pack/p/3619551) that powers our machine via [UDP](https://github.com/sbidy/pywizlight). We setup a static IP and opened the port from syslab.cs to the smartplug, which allows us to run this command when the target machine is in a corrupted state.
-
-2. After an out-of-band restart, due to voltage changes, we notice bit-flips will disappear for a while. Whenever a restart happens, run the following to check for a bit-flip:
+1. After an out-of-band restart, due to voltage changes, we notice bit-flips will disappear for a while. Whenever a restart happens, run the following to check for a bit-flip:
 
    ```bash
    cd gpubreach

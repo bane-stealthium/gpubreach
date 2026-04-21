@@ -8,7 +8,7 @@ echo "###########################################"
 
 python3 -m pip install matplotlib torch==2.10.0 torchvision==0.25.0
 
-cd $HAMMER_ROOT
+cd $HAMMER_ROOT/src
 rm -rf out
 cmake -S . -B out/build
 cd out/build && make -j 
