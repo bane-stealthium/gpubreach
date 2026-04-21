@@ -147,8 +147,7 @@ load_rowhammer_bitflip_info (GPUBreachContext &ctx)
 
   /* We reconfigure the aggressor row addresses using the new virtual addresses
    */
-  auto offset_map = get_relative_aggressor_offset (rows, target_agg, layout);
-  auto row_agg_pair = get_aggressor_rows_from_offset (agg_ptrs, offset_map);
+  auto row_agg_pair = get_new_rows(rows, target_agg, layout, agg_ptrs);
   set_rows (row_agg_pair.first, row_agg_pair.second, agg_pat, step);
   cudaDeviceSynchronize ();
 
