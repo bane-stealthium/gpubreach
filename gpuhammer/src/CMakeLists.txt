@@ -6,7 +6,7 @@ set(CMAKE_CUDA_ARCHITECTURES 80)
 
 project(GPURowhammer LANGUAGES CXX CUDA)
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --generate-line-info -O3 -Xcicc -O0 -Xptxas -O3 -gencode=arch=compute_80,code=sm_80")
-find_package(CUDA 12.8 REQUIRED)
+find_package(CUDAToolkit REQUIRED)
 
 include_directories(include)
 set(THREADS_PREFER_PTHREAD_FLAG ON)

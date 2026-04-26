@@ -37,7 +37,7 @@ KNOWN_FLIPS = {
     }
 
 def restricted_num_agg(x):
-    if 8 <= int(x) <= 24: return x
+    if 8 <= int(x) <= 24: return int(x)
     raise argparse.ArgumentTypeError("num_agg must be between 8 and 24 inclusive")
 
 def get_delays_from_file(delay_file):

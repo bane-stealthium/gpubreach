@@ -1,12 +1,14 @@
-source init_env.sh
-cd ./gpu-tlb/dumper && make
-cd ../extractor/ && make
-cd ../modifier/ && make
+#!/bin/bash
+set -euo pipefail
 
-cd ../..
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-cd ./d2h-tools/gpu_mem_dumper/dumper && make
-cd ../../..
-cd ./d2h-tools/gpu_mem_dumper/extractor && make
-cd ../../..
-cd ./d2h-tools/gpu_mem_dumper/modifier && make
+source "$SCRIPT_DIR/init_env.sh"
+
+make -C "$SCRIPT_DIR/gpu-tlb/dumper"
+make -C "$SCRIPT_DIR/gpu-tlb/extractor"
+make -C "$SCRIPT_DIR/gpu-tlb/modifier"
+
+make -C "$SCRIPT_DIR/d2h-tools/gpu_mem_dumper/dumper"
+make -C "$SCRIPT_DIR/d2h-tools/gpu_mem_dumper/extractor"
+make -C "$SCRIPT_DIR/d2h-tools/gpu_mem_dumper/modifier"

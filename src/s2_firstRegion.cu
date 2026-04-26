@@ -239,7 +239,7 @@ first_PT_region (uint64_t num_alloc_init, double threshold, uint64_t skip,
   cudaFree (alloc_ptrs[0]);
   alloc_ptrs.clear ();
 
-  for (uint64_t i = 0; i < next_id; i += 1)
+  for (uint64_t i = 0; i < std::min(next_id, (uint64_t)misc_ptrs.size ()); i += 1)
     cudaFree (misc_ptrs[i]);
   misc_ptrs.clear ();
   /****************************************************************/

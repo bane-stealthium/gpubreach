@@ -6,7 +6,7 @@ echo "[INFO] Running GPUBreach Demo"
 echo "###########################################"
 
 cd data_scripts/gpubreach_demo
-nvcc sample_app.cu -ccbin g++-10 -O3 -Xcicc -O0 -Xptxas -O3 --generate-line-info -gencode=arch=compute_80,code=sm_80 -o app
+nvcc sample_app.cu -ccbin g++ -O3 -Xcicc -O0 -Xptxas -O3 --generate-line-info -gencode=arch=compute_80,code=sm_80 -o app
 cd ../../
 mkdir -p results/gpubreach_demo
 > ./results/gpubreach_demo/app.out

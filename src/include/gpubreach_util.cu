@@ -203,13 +203,6 @@ get_aggressor_rows_from_offset (
       rows.push_back (currentRow);
     }
 
-  // Aggressor indices: 0..rows.size()-1
-  aggressors.resize (rows.size ());
-  for (uint64_t i = 0; i < rows.size (); i++)
-    {
-      aggressors[i] = i;
-    }
-
   for (auto &row : rows)
     {
       row.erase (std::remove_if (row.begin (), row.end (),
@@ -222,6 +215,14 @@ get_aggressor_rows_from_offset (
                                    }),
                  row.end ());
     }
+
+  // Remove rows that became empty after address filtering, then reindex
+  rows.erase (std::remove_if (rows.begin (), rows.end (),
+                               [] (const Row &r) { return r.empty (); }),
+              rows.end ());
+  aggressors.resize (rows.size ());
+  for (uint64_t i = 0; i < rows.size (); i++)
+    aggressors[i] = i;
 
   return { rows, aggressors };
 }

